@@ -1,0 +1,10 @@
+[
+  {
+    "Name": "chromium",
+    "License": "BSD 3-Clause License",
+    "License File": "LICENSE",
+    "Version Number": "91.0.4455.0",
+    "Upstream URL": "https://chromium.googlesource.com/chromium/src/+/refs/tags/91.0.4455.0",
+    "Description": "The repository contains the chromium code. Chromium is an open-source browser project that aims to build a safer, faster, and more stable way for all Internet users to experience the web."
+  }
+]
