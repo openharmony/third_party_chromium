@@ -28,14 +28,14 @@ fetch --nohooks chromium
 
 cd src
 
-git fecth origin 91.0.4455.0
+git fetch origin 91.0.4455.0
 
 git checkout -b 91.0.4455.0 FETCH_HEAD
 
 gclient sync --with_branch_heads -D
 
 # 下载依赖
-./build/install-build-deps.sh
+./build/install-build-deps.sh --no-chromeos-fonts
 ./build/install-build-deps-android.sh
 
 gclient runhooks
@@ -43,13 +43,13 @@ gclient runhooks
 # 使用Openharmony nweb的patch
 
 # 1.使用针对cef的修改
-git apply patch/0001_cef_V4455.patch
+git apply ../patch/0001_cef_V4455.patch
 
 # 2.使用针对openharmony编译的修改
-git apply patch/0002_build_for_ohos.patch
+git apply ../patch/0002_build_for_ohos.patch
 
 # 3.使用nweb引擎的修改
-git apply patch/0003_ohos_nweb.patch
+git apply ../patch/0003_ohos_nweb.patch
 
 # 4.chromium cve安全漏洞补丁及nweb bug修复
-git apply patch/0004_nweb_cve_bugfix.patch
+git apply ../patch/0004_nweb_cve_bugfix.patch
