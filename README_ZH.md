@@ -12,18 +12,18 @@ OpenHarmony web基于Chromium构建。
     -----------------------
     |      web组件         |
     -----------------------
-    |      webview        |
+    |        nweb          |
     -----------------------
-    |        CEF          |
+    |        CEF           |
     -----------------------
-    |      Chromium       |
+    |      Chromium        |
     -----------------------
     |  OpenHarmony基础库   |
     -----------------------
 ```
 
  web组件：OpenHarmony的UI组件
- webview：基于CEF构建的OpenHarmony web Native引擎
+ nweb：基于CEF构建的OpenHarmony web Native引擎
  CEF：CEF全称Chromium Embedded Framework，是一个基于Google Chromium 的开源项目
  Chromium： Chromium是一个由Google主导开发的网页浏览器。以BSD许可证等多重自由版权发行并开放源代码
 
@@ -32,17 +32,13 @@ OpenHarmony web基于Chromium构建。
 ```
 .
 ├── patch                      # 构建nweb，针对chromium修改的patch目录
-├── prebuilt                   # 源代码的预编译二进制目录
-│   └── WGR
-│       └── arm                # Wagner产品的arm版本目录
-└── tools                      # 脚本目录
 ```
 
 
 ## 使用说明
 
-1.  进入tools目录，执行init_chromium.sh，初始化源代码
-2.  进入tools目录，执行build_chromium.sh，编译源码
+1.  执行init_chromium.sh，初始化源代码
+2.  执行build.sh，编译源码
 
 
 ## 相关仓
