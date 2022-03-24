@@ -53,3 +53,8 @@ git apply ../patch/0003_ohos_nweb.patch
 
 # 4.chromium cve安全漏洞补丁及nweb bug修复
 git apply ../patch/0004_nweb_cve_bugfix.patch
+
+# 5.2022-3-24-cve安全漏洞补丁
+git apply ../patch/cve/0001-CVE-2022-0973-Use-WeakPtr-and-unique_ptr-for-ownersh.patch
+git apply ../patch/cve/0002-CVE-2022-0971-Don-t-use-a-deleted-RenderFrameHost.patch
+
