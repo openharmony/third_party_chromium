@@ -26,13 +26,13 @@
         </policylist>
         <filefilterlist>
             <filefilter name="defaultFilter" desc="Files not to check">
-                <filteritem type="filename" name="LICENSE.Chromium" desc="open source chromium origin file, confirmed"/>
+                <filteritem type="filename" name="README.Chromium" desc="README.Chromium file, confirmed"/>
             </filefilter>
             <filefilter name="copyrightPolicyFilter" desc="copyright policy filter" >
-                <filteritem type="filename" name="LICENSE.Chromium" desc="open source chromium origin file, confirmed"/>
+                <filteritem type="filename" name="README.Chromium" desc="README.Chromium file, confirmed"/>
             </filefilter>
             <filefilter name="licenseFileNamePolicyFilter" desc="Filters for LICENSE file policies">
-                <filteritem type="filename" name="LICENSE.Chromium" desc="open source chromium origin file, confirmed"/>
+                <filteritem type="filename" name="README.Chromium" desc="README.Chromium file, confirmed"/>
             </filefilter>
         </filefilterlist>
         <licensematcherlist>
