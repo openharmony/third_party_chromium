@@ -57,3 +57,27 @@ git apply ../patch/0004_nweb_cve_bugfix.patch
 # 5.2022-3-24-cve安全漏洞补丁
 git apply ../patch/3.1_Release_cve_v8.patch
 
+# 6.330版本chromium代码新增与修改
+git apply ../patch/3.1_Release.patch
+
+# 7.530版本chromium代码新增与修改
+git apply ../patch/3.2_Beta1.patch
+
+# 8.530版本cve安全漏洞补丁
+git apply ../patch/3.2_Beta1_cve_v8.patch
+
+# 9.730版本chromium代码新增与修改
+git apply ../patch/3.2_Beta2.patch
+
+# 10.730版本cve安全漏洞补丁
+git apply ../patch/3.2_Beta2_cve_v8.patch
+
+
+# cve漏洞patch
+cd ..
+
+# 1. CVE-2022-2295、CVE-2022-2294安全漏洞补丁
+git apply ./patch/Release-816.patch
+
+# 2. CVE-2022-2415安全漏洞补丁
+git apply ./patch/Release-823.patch

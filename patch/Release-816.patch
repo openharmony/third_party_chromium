@@ -1,0 +1,594 @@
+diff --git a/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.cc b/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.cc
+index 79c9ee5597..e5833968c1 100644
+--- a/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.cc
++++ b/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.cc
+@@ -18,7 +18,8 @@ CloseBubbleOnTabActivationHelper::CloseBubbleOnTabActivationHelper(
+ }
+ 
+ CloseBubbleOnTabActivationHelper::~CloseBubbleOnTabActivationHelper() {
+-  browser_->tab_strip_model()->RemoveObserver(this);
++  if (browser_)
++    browser_->tab_strip_model()->RemoveObserver(this);
+ }
+ 
+ void CloseBubbleOnTabActivationHelper::OnTabStripModelChanged(
+@@ -35,3 +36,10 @@ void CloseBubbleOnTabActivationHelper::OnTabStripModelChanged(
+     owner_bubble_ = nullptr;
+   }
+ }
++
++void CloseBubbleOnTabActivationHelper::OnTabStripModelDestroyed(
++    TabStripModel* tab_strip_model) {
++  DCHECK(browser_);
++  browser_->tab_strip_model()->RemoveObserver(this);
++  browser_ = nullptr;
++}
+diff --git a/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.h b/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.h
+index 7fd05cefbd..486b6d1c57 100644
+--- a/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.h
++++ b/src/chrome/browser/ui/views/close_bubble_on_tab_activation_helper.h
+@@ -30,6 +30,7 @@ class CloseBubbleOnTabActivationHelper : public TabStripModelObserver {
+       TabStripModel* tab_strip_model,
+       const TabStripModelChange& change,
+       const TabStripSelectionChange& selection) override;
++  void OnTabStripModelDestroyed(TabStripModel* tab_strip_model) override;
+ 
+  private:
+   views::BubbleDialogDelegateView* owner_bubble_;  // weak, owns me.
+diff --git a/src/content/browser/service_worker/service_worker_version.cc b/src/content/browser/service_worker/service_worker_version.cc
+index faf73f0285..6dc6a4fae0 100644
+--- a/src/content/browser/service_worker/service_worker_version.cc
++++ b/src/content/browser/service_worker/service_worker_version.cc
+@@ -1970,6 +1970,11 @@ void ServiceWorkerVersion::OnTimeoutTimer() {
+ 
+   MarkIfStale();
+ 
++  // Global `this` protecter.
++  // callbacks initiated by this function sometimes reduce refcnt to 0
++  // to make this instance freed.
++  scoped_refptr<ServiceWorkerVersion> protect_this(this);
++
+   // Stopping the worker hasn't finished within a certain period.
+   if (GetTickDuration(stop_time_) > kStopWorkerTimeout) {
+     DCHECK_EQ(EmbeddedWorkerStatus::STOPPING, running_status());
+@@ -1980,12 +1985,6 @@ void ServiceWorkerVersion::OnTimeoutTimer() {
+     ReportError(blink::ServiceWorkerStatusCode::kErrorTimeout,
+                 "DETACH_STALLED_IN_STOPPING");
+ 
+-    // Detach the worker. Remove |this| as a listener first; otherwise
+-    // OnStoppedInternal might try to restart before the new worker
+-    // is created. Also, protect |this|, since swapping out the
+-    // EmbeddedWorkerInstance could destroy our ServiceWorkerHost which could in
+-    // turn destroy |this|.
+-    scoped_refptr<ServiceWorkerVersion> protect_this(this);
+     embedded_worker_->RemoveObserver(this);
+     embedded_worker_->Detach();
+     embedded_worker_ = std::make_unique<EmbeddedWorkerInstance>(this);
+@@ -2012,7 +2011,6 @@ void ServiceWorkerVersion::OnTimeoutTimer() {
+     DCHECK(running_status() == EmbeddedWorkerStatus::STARTING ||
+            running_status() == EmbeddedWorkerStatus::STOPPING)
+         << static_cast<int>(running_status());
+-    scoped_refptr<ServiceWorkerVersion> protect(this);
+     FinishStartWorker(blink::ServiceWorkerStatusCode::kErrorTimeout);
+     if (running_status() == EmbeddedWorkerStatus::STARTING)
+       embedded_worker_->Stop();
+@@ -2021,17 +2019,26 @@ void ServiceWorkerVersion::OnTimeoutTimer() {
+ 
+   // Requests have not finished before their expiration.
+   bool stop_for_timeout = false;
+-  auto timeout_iter = request_timeouts_.begin();
+-  while (timeout_iter != request_timeouts_.end()) {
++  // In case, `request_timeouts_` can be modified in the callbacks initiated
++  // in `MaybeTimeoutRequest`, we keep its contents locally during the
++  // following while loop.
++  std::set<InflightRequestTimeoutInfo> request_timeouts;
++  request_timeouts.swap(request_timeouts_);
++  auto timeout_iter = request_timeouts.begin();
++  while (timeout_iter != request_timeouts.end()) {
+     const InflightRequestTimeoutInfo& info = *timeout_iter;
+-    if (!RequestExpired(info.expiration))
++    if (!RequestExpired(info.expiration)) {
+       break;
++    }
+     if (MaybeTimeoutRequest(info)) {
+       stop_for_timeout =
+           stop_for_timeout || info.timeout_behavior == KILL_ON_TIMEOUT;
+     }
+-    timeout_iter = request_timeouts_.erase(timeout_iter);
++    timeout_iter = request_timeouts.erase(timeout_iter);
+   }
++  // Ensure the `request_timeouts_` won't be touched during the loop.
++  DCHECK(request_timeouts_.empty());
++  request_timeouts_.swap(request_timeouts);
+   if (stop_for_timeout && running_status() != EmbeddedWorkerStatus::STOPPING)
+     embedded_worker_->Stop();
+ 
+diff --git a/src/content/browser/service_worker/service_worker_version.h b/src/content/browser/service_worker/service_worker_version.h
+index 1db322ab68..f1c63f2a8a 100644
+--- a/src/content/browser/service_worker/service_worker_version.h
++++ b/src/content/browser/service_worker/service_worker_version.h
+@@ -851,6 +851,8 @@ class CONTENT_EXPORT ServiceWorkerVersion
+                                bool is_browser_startup_complete,
+                                blink::ServiceWorkerStatusCode status);
+ 
++  // The caller of MaybeTimeoutRequest must increase reference count of |this|
++  // to avoid it deleted during the execution.
+   bool MaybeTimeoutRequest(const InflightRequestTimeoutInfo& info);
+   void SetAllRequestExpirations(const base::TimeTicks& expiration);
+ 
+diff --git a/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.cc b/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.cc
+index 2e9c330e67..12f7b4b440 100644
+--- a/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.cc
++++ b/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.cc
+@@ -66,7 +66,7 @@ void JavaScriptDialogHelper::RunJavaScriptDialog(
+   web_view_permission_helper->RequestPermission(
+       WEB_VIEW_PERMISSION_TYPE_JAVASCRIPT_DIALOG, request_info,
+       base::BindOnce(&JavaScriptDialogHelper::OnPermissionResponse,
+-                     base::Unretained(this), std::move(callback)),
++                     weak_factory_.GetWeakPtr(), std::move(callback)),
+       false /* allowed_by_default */);
+ }
+ 
+diff --git a/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.h b/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.h
+index ae759a14c1..125977727f 100644
+--- a/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.h
++++ b/src/extensions/browser/guest_view/web_view/javascript_dialog_helper.h
+@@ -6,6 +6,7 @@
+ #define EXTENSIONS_BROWSER_GUEST_VIEW_WEB_VIEW_JAVASCRIPT_DIALOG_HELPER_H_
+ 
+ #include "base/macros.h"
++#include "base/memory/weak_ptr.h"
+ #include "content/public/browser/javascript_dialog_manager.h"
+ 
+ namespace extensions {
+@@ -43,6 +44,8 @@ class JavaScriptDialogHelper : public content::JavaScriptDialogManager {
+   // Pointer to the webview that is being helped.
+   WebViewGuest* const web_view_guest_;
+ 
++  base::WeakPtrFactory<JavaScriptDialogHelper> weak_factory_{this};
++
+   DISALLOW_COPY_AND_ASSIGN(JavaScriptDialogHelper);
+ };
+ 
+diff --git a/src/third_party/blink/web_tests/fast/peerconnection/simulcast-munge.html b/src/third_party/blink/web_tests/fast/peerconnection/simulcast-munge.html
+new file mode 100644
+index 0000000000..2e6dcf9269
+--- /dev/null
++++ b/src/third_party/blink/web_tests/fast/peerconnection/simulcast-munge.html
+@@ -0,0 +1,50 @@
++<!DOCTYPE html>
++<html>
++  <head>
++    <title>Simulcast manipulation</title>
++    <script src="../../resources/testharness.js"></script>
++<script src="../../resources/testharnessreport.js"></script>
++
++<script>
++
++var canvas = document.createElement('canvas');
++
++function createConnection() {
++  var pc = new RTCPeerConnection({
++    iceServers: [],
++    iceTransportPolicy: 'relay'
++  });
++  var encodings = [];
++  for (var i = 0; i < 2; i++) {
++    encodings.push({ rid: String.fromCharCode(97 + i) });
++    // rid must be alphabetic and unique
++  }
++  pc.addTransceiver(canvas.captureStream(0).getTracks()[0],
++                    { sendEncodings: encodings });
++  return pc;
++}
++
++function sdp_munge(offer) {
++  let sdp = offer.sdp;
++  sdp = sdp.replace(/\r?\na=rid:(.+)\s+send\r?\na=simulcast:send\s+.+;\1/, '');
++  // Check that munging worked
++  assert_false(sdp === offer.sdp);
++  offer.sdp = sdp;
++  return offer;
++}
++
++promise_test(async t => {
++  const pc = createConnection();
++  const offer = await pc.createOffer();
++  const sender = pc.getSenders()[0];
++  const parametersBefore = sender.getParameters();
++  const munged_offer = sdp_munge(offer);
++  await pc.setLocalDescription(munged_offer);
++  const parametersAfter = sender.getParameters();
++  assert_equals(parametersBefore.encodings.length,
++                parametersAfter.encodings.length);
++}, "Munging SDP simulcast should not cause changes to simulcast envelope")
++
++</script>
++</head>
++</html>
+\ No newline at end of file
+diff --git a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.cpp b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.cpp
+index 422f92b257..616b6f123a 100644
+--- a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.cpp
++++ b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.cpp
+@@ -10,6 +10,7 @@
+ #include <utility>
+ 
+ #include "core/fpdfapi/parser/cpdf_boolean.h"
++#include "core/fpdfapi/parser/cpdf_dictionary.h"
+ #include "core/fpdfapi/parser/cpdf_name.h"
+ #include "core/fpdfapi/parser/cpdf_number.h"
+ #include "core/fpdfapi/parser/cpdf_reference.h"
+@@ -143,6 +144,10 @@ float CPDF_Array::GetNumberAt(size_t index) const {
+   return m_Objects[index]->GetNumber();
+ }
+ 
++RetainPtr<CPDF_Dictionary> CPDF_Array::GetMutableDictAt(size_t index) {
++  return pdfium::WrapRetain(GetDictAt(index));
++}
++
+ CPDF_Dictionary* CPDF_Array::GetDictAt(size_t index) {
+   CPDF_Object* p = GetDirectObjectAt(index);
+   if (!p)
+diff --git a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.h b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.h
+index 37b1af9592..7945eadb5b 100644
+--- a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.h
++++ b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_array.h
+@@ -45,7 +45,8 @@ class CPDF_Array final : public CPDF_Object {
+   bool GetBooleanAt(size_t index, bool bDefault) const;
+   int GetIntegerAt(size_t index) const;
+   float GetNumberAt(size_t index) const;
+-  CPDF_Dictionary* GetDictAt(size_t index);
++  RetainPtr<CPDF_Dictionary> GetMutableDictAt(size_t index);
++  CPDF_Dictionary* GetDictAt(size_t index);  // prefer previous form.
+   const CPDF_Dictionary* GetDictAt(size_t index) const;
+   CPDF_Stream* GetStreamAt(size_t index);
+   const CPDF_Stream* GetStreamAt(size_t index) const;
+diff --git a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.cpp b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.cpp
+index 0ded422ed3..045339e8e2 100644
+--- a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.cpp
++++ b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.cpp
+@@ -147,6 +147,11 @@ float CPDF_Dictionary::GetNumberFor(const ByteString& key) const {
+   return p ? p->GetNumber() : 0;
+ }
+ 
++RetainPtr<CPDF_Dictionary> CPDF_Dictionary::GetMutableDictFor(
++    const ByteString& key) {
++  return pdfium::WrapRetain(GetDictFor(key));
++}
++
+ const CPDF_Dictionary* CPDF_Dictionary::GetDictFor(
+     const ByteString& key) const {
+   const CPDF_Object* p = GetDirectObjectFor(key);
+@@ -164,6 +169,11 @@ CPDF_Dictionary* CPDF_Dictionary::GetDictFor(const ByteString& key) {
+       static_cast<const CPDF_Dictionary*>(this)->GetDictFor(key));
+ }
+ 
++RetainPtr<CPDF_Array> CPDF_Dictionary::GetMutableArrayFor(
++    const ByteString& key) {
++  return pdfium::WrapRetain(GetArrayFor(key));
++}
++
+ const CPDF_Array* CPDF_Dictionary::GetArrayFor(const ByteString& key) const {
+   return ToArray(GetDirectObjectFor(key));
+ }
+diff --git a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.h b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.h
+index cc23730bf8..65e939c837 100644
+--- a/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.h
++++ b/src/third_party/pdfium/core/fpdfapi/parser/cpdf_dictionary.h
+@@ -66,9 +66,11 @@ class CPDF_Dictionary final : public CPDF_Object {
+   int GetIntegerFor(const ByteString& key, int default_int) const;
+   float GetNumberFor(const ByteString& key) const;
+   const CPDF_Dictionary* GetDictFor(const ByteString& key) const;
+-  CPDF_Dictionary* GetDictFor(const ByteString& key);
++  CPDF_Dictionary* GetDictFor(const ByteString& key);  // Prefer next form.
++  RetainPtr<CPDF_Dictionary> GetMutableDictFor(const ByteString& key);
+   const CPDF_Array* GetArrayFor(const ByteString& key) const;
+-  CPDF_Array* GetArrayFor(const ByteString& key);
++  CPDF_Array* GetArrayFor(const ByteString& key);  // Prefer next form.
++  RetainPtr<CPDF_Array> GetMutableArrayFor(const ByteString& key);
+   const CPDF_Stream* GetStreamFor(const ByteString& key) const;
+   CPDF_Stream* GetStreamFor(const ByteString& key);
+   CFX_FloatRect GetRectFor(const ByteString& key) const;
+diff --git a/src/third_party/pdfium/core/fpdfdoc/cpdf_nametree.cpp b/src/third_party/pdfium/core/fpdfdoc/cpdf_nametree.cpp
+index 546a57331f..512a284b52 100644
+--- a/src/third_party/pdfium/core/fpdfdoc/cpdf_nametree.cpp
++++ b/src/third_party/pdfium/core/fpdfdoc/cpdf_nametree.cpp
+@@ -39,7 +39,7 @@ std::pair<WideString, WideString> GetNodeLimitsMaybeSwap(CPDF_Array* pLimits) {
+ // Get the limit arrays that leaf array |pFind| is under in the tree with root
+ // |pNode|. |pLimits| will hold all the limit arrays from the leaf up to before
+ // the root. Return true if successful.
+-bool GetNodeAncestorsLimits(CPDF_Dictionary* pNode,
++bool GetNodeAncestorsLimits(const RetainPtr<CPDF_Dictionary>& pNode,
+                             const CPDF_Array* pFind,
+                             int nLevel,
+                             std::vector<CPDF_Array*>* pLimits) {
+@@ -56,7 +56,7 @@ bool GetNodeAncestorsLimits(CPDF_Dictionary* pNode,
+     return false;
+ 
+   for (size_t i = 0; i < pKids->size(); ++i) {
+-    CPDF_Dictionary* pKid = pKids->GetDictAt(i);
++    RetainPtr<CPDF_Dictionary> pKid = pKids->GetMutableDictAt(i);
+     if (!pKid)
+       continue;
+ 
+@@ -156,21 +156,21 @@ bool UpdateNodesAndLimitsUponDeletion(CPDF_Dictionary* pNode,
+ // will be the index of |csName| in |ppFind|. If |csName| is not found, |ppFind|
+ // will be the leaf array that |csName| should be added to, and |pFindIndex|
+ // will be the index that it should be added at.
+-CPDF_Object* SearchNameNodeByName(CPDF_Dictionary* pNode,
++CPDF_Object* SearchNameNodeByName(const RetainPtr<CPDF_Dictionary>& pNode,
+                                   const WideString& csName,
+                                   int nLevel,
+                                   size_t* nIndex,
+-                                  CPDF_Array** ppFind,
++                                  RetainPtr<CPDF_Array>* ppFind,
+                                   int* pFindIndex) {
+   if (nLevel > kNameTreeMaxRecursion)
+     return nullptr;
+ 
+-  CPDF_Array* pLimits = pNode->GetArrayFor("Limits");
+-  CPDF_Array* pNames = pNode->GetArrayFor("Names");
++  RetainPtr<CPDF_Array> pLimits = pNode->GetMutableArrayFor("Limits");
++  RetainPtr<CPDF_Array> pNames = pNode->GetMutableArrayFor("Names");
+   if (pLimits) {
+     WideString csLeft;
+     WideString csRight;
+-    std::tie(csLeft, csRight) = GetNodeLimitsMaybeSwap(pLimits);
++    std::tie(csLeft, csRight) = GetNodeLimitsMaybeSwap(pLimits.Get());
+     // Skip this node if the name to look for is smaller than its lower limit.
+     if (csName.Compare(csLeft) < 0)
+       return nullptr;
+@@ -210,12 +210,12 @@ CPDF_Object* SearchNameNodeByName(CPDF_Dictionary* pNode,
+   }
+ 
+   // Search through the node's children.
+-  CPDF_Array* pKids = pNode->GetArrayFor("Kids");
++  RetainPtr<CPDF_Array> pKids = pNode->GetMutableArrayFor("Kids");
+   if (!pKids)
+     return nullptr;
+ 
+   for (size_t i = 0; i < pKids->size(); i++) {
+-    CPDF_Dictionary* pKid = pKids->GetDictAt(i);
++    RetainPtr<CPDF_Dictionary> pKid = pKids->GetMutableDictAt(i);
+     if (!pKid)
+       continue;
+ 
+@@ -236,7 +236,7 @@ CPDF_Object* SearchNameNodeByIndex(CPDF_Dictionary* pNode,
+                                    int nLevel,
+                                    size_t* nCurIndex,
+                                    WideString* csName,
+-                                   CPDF_Array** ppFind,
++                                   RetainPtr<CPDF_Array>* ppFind,
+                                    int* pFindIndex) {
+   if (nLevel > kNameTreeMaxRecursion)
+     return nullptr;
+@@ -395,17 +395,17 @@ size_t CPDF_NameTree::GetCount() const {
+ bool CPDF_NameTree::AddValueAndName(RetainPtr<CPDF_Object> pObj,
+                                     const WideString& name) {
+   size_t nIndex = 0;
+-  CPDF_Array* pFind = nullptr;
++  RetainPtr<CPDF_Array> pFind;
+   int nFindIndex = -1;
+   // Handle the corner case where the root node is empty. i.e. No kids and no
+   // names. In which case, just insert into it and skip all the searches.
+-  CPDF_Array* pNames = m_pRoot->GetArrayFor("Names");
++  RetainPtr<CPDF_Array> pNames = m_pRoot->GetMutableArrayFor("Names");
+   if (pNames && pNames->IsEmpty() && !m_pRoot->GetArrayFor("Kids"))
+     pFind = pNames;
+ 
+   if (!pFind) {
+     // Fail if the tree already contains this name or if the tree is too deep.
+-    if (SearchNameNodeByName(m_pRoot.Get(), name, 0, &nIndex, &pFind,
++    if (SearchNameNodeByName(m_pRoot, name, 0, &nIndex, &pFind,
+                              &nFindIndex)) {
+       return false;
+     }
+@@ -435,7 +435,7 @@ bool CPDF_NameTree::AddValueAndName(RetainPtr<CPDF_Object> pObj,
+   // Expand the limits that the newly added name is under, if the name falls
+   // outside of the limits of its leaf array or any arrays above it.
+   std::vector<CPDF_Array*> pLimits;
+-  GetNodeAncestorsLimits(m_pRoot.Get(), pFind, 0, &pLimits);
++  GetNodeAncestorsLimits(m_pRoot, pFind.Get(), 0, &pLimits);
+   for (auto* pLimit : pLimits) {
+     if (!pLimit)
+       continue;
+@@ -452,7 +452,7 @@ bool CPDF_NameTree::AddValueAndName(RetainPtr<CPDF_Object> pObj,
+ bool CPDF_NameTree::DeleteValueAndName(int nIndex) {
+   size_t nCurIndex = 0;
+   WideString csName;
+-  CPDF_Array* pFind = nullptr;
++  RetainPtr<CPDF_Array> pFind;
+   int nFindIndex = -1;
+   // Fail if the tree does not contain |nIndex|.
+   if (!SearchNameNodeByIndex(m_pRoot.Get(), nIndex, 0, &nCurIndex, &csName,
+@@ -465,7 +465,7 @@ bool CPDF_NameTree::DeleteValueAndName(int nIndex) {
+   pFind->RemoveAt(nFindIndex * 2);
+ 
+   // Delete empty nodes and update the limits of |pFind|'s ancestors as needed.
+-  UpdateNodesAndLimitsUponDeletion(m_pRoot.Get(), pFind, csName, 0);
++  UpdateNodesAndLimitsUponDeletion(m_pRoot.Get(), pFind.Get(), csName, 0);
+   return true;
+ }
+ 
+@@ -479,7 +479,7 @@ CPDF_Object* CPDF_NameTree::LookupValueAndName(int nIndex,
+ 
+ CPDF_Object* CPDF_NameTree::LookupValue(const WideString& csName) const {
+   size_t nIndex = 0;
+-  return SearchNameNodeByName(m_pRoot.Get(), csName, 0, &nIndex, nullptr,
++  return SearchNameNodeByName(m_pRoot, csName, 0, &nIndex, nullptr,
+                               nullptr);
+ }
+ 
+diff --git a/src/third_party/pdfium/testing/resources/javascript/bug_1335681.in b/src/third_party/pdfium/testing/resources/javascript/bug_1335681.in
+new file mode 100644
+index 0000000000..254e596451
+--- /dev/null
++++ b/src/third_party/pdfium/testing/resources/javascript/bug_1335681.in
+@@ -0,0 +1,38 @@
++{{header}}
++{{object 1 0}} <<
++  /Pages 1 0 R
++  /OpenAction 2 0 R
++  /Names <<
++      /Dests 3 0 R
++  >>
++>>
++endobj
++{{object 2 0}} <<
++  /Type /Action
++  /S /JavaScript
++  /JS (
++    app.alert\("Starting"\);
++    this.gotoNamedDest\(""\);
++  )
++>>
++endobj
++{{object 3 0}} <<
++  /Kids 4 0 R
++>>
++endobj
++{{object 4 0}} [
++  << >>
++  << >>
++  <<
++    /Kids [
++      <<
++        /Limits 4 0 R
++      >>
++    ]
++  >>
++]
++endobj
++{{xref}}
++{{trailer}}
++{{startxref}}
++%%EOF
+diff --git a/src/third_party/pdfium/testing/resources/javascript/bug_1335681_expected.txt b/src/third_party/pdfium/testing/resources/javascript/bug_1335681_expected.txt
+new file mode 100644
+index 0000000000..80a6951c49
+--- /dev/null
++++ b/src/third_party/pdfium/testing/resources/javascript/bug_1335681_expected.txt
+@@ -0,0 +1 @@
++Alert: Starting
+diff --git a/src/third_party/webrtc/pc/peer_connection_simulcast_unittest.cc b/src/third_party/webrtc/pc/peer_connection_simulcast_unittest.cc
+index 8822a980f7..3476429811 100644
+--- a/src/third_party/webrtc/pc/peer_connection_simulcast_unittest.cc
++++ b/src/third_party/webrtc/pc/peer_connection_simulcast_unittest.cc
+@@ -556,6 +556,27 @@ TEST_F(PeerConnectionSimulcastTests, NegotiationDoesNotHaveRidExtension) {
+   ValidateTransceiverParameters(transceiver, expected_layers);
+ }
+ 
++// Check that modifying the offer to remove simulcast and at the same
++// time leaving in a RID line does not cause an exception.
++TEST_F(PeerConnectionSimulcastTests, SimulcastSldModificationRejected) {
++  auto local = CreatePeerConnectionWrapper();
++  auto remote = CreatePeerConnectionWrapper();
++  auto layers = CreateLayers({"1", "2", "3"}, true);
++  AddTransceiver(local.get(), layers);
++  auto offer = local->CreateOffer();
++  std::string as_string;
++  EXPECT_TRUE(offer->ToString(&as_string));
++  auto simulcast_marker = "a=rid:3 send\r\na=simulcast:send 1;2;3\r\n";
++  auto pos = as_string.find(simulcast_marker);
++  EXPECT_NE(pos, std::string::npos);
++  as_string.erase(pos, strlen(simulcast_marker));
++  SdpParseError parse_error;
++  auto modified_offer =
++      CreateSessionDescription(SdpType::kOffer, as_string, &parse_error);
++  EXPECT_TRUE(modified_offer);
++  EXPECT_TRUE(local->SetLocalDescription(std::move(modified_offer)));
++}
++
+ #if RTC_METRICS_ENABLED
+ //
+ // Checks the logged metrics when simulcast is not used.
+diff --git a/src/third_party/webrtc/pc/rtp_sender.cc b/src/third_party/webrtc/pc/rtp_sender.cc
+index 7026dd9db7..e3db51fffb 100644
+--- a/src/third_party/webrtc/pc/rtp_sender.cc
++++ b/src/third_party/webrtc/pc/rtp_sender.cc
+@@ -291,8 +291,8 @@ void RtpSenderBase::SetSsrc(uint32_t ssrc) {
+       // we need to copy.
+       RtpParameters current_parameters =
+           media_channel_->GetRtpSendParameters(ssrc_);
+-      RTC_DCHECK_GE(current_parameters.encodings.size(),
+-                    init_parameters_.encodings.size());
++      RTC_CHECK_GE(current_parameters.encodings.size(),
++                   init_parameters_.encodings.size());
+       for (size_t i = 0; i < init_parameters_.encodings.size(); ++i) {
+         init_parameters_.encodings[i].ssrc =
+             current_parameters.encodings[i].ssrc;
+diff --git a/src/third_party/webrtc/pc/rtp_sender_receiver_unittest.cc b/src/third_party/webrtc/pc/rtp_sender_receiver_unittest.cc
+index 364e87a89f..7a32cb0d9d 100644
+--- a/src/third_party/webrtc/pc/rtp_sender_receiver_unittest.cc
++++ b/src/third_party/webrtc/pc/rtp_sender_receiver_unittest.cc
+@@ -1120,6 +1120,44 @@ TEST_F(RtpSenderReceiverTest,
+   DestroyVideoRtpSender();
+ }
+ 
++#if GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
++using RtpSenderReceiverDeathTest = RtpSenderReceiverTest;
++
++TEST_F(RtpSenderReceiverDeathTest,
++       VideoSenderManualRemoveSimulcastFailsDeathTest) {
++  AddVideoTrack(false);
++
++  std::unique_ptr<MockSetStreamsObserver> set_streams_observer =
++      std::make_unique<MockSetStreamsObserver>();
++  video_rtp_sender_ = VideoRtpSender::Create(worker_thread_, video_track_->id(),
++                                             set_streams_observer.get());
++  ASSERT_TRUE(video_rtp_sender_->SetTrack(video_track_.get()));
++  EXPECT_CALL(*set_streams_observer, OnSetStreams());
++  video_rtp_sender_->SetStreams({local_stream_->id()});
++
++  std::vector<RtpEncodingParameters> init_encodings(2);
++  init_encodings[0].max_bitrate_bps = 60000;
++  init_encodings[1].max_bitrate_bps = 120000;
++  video_rtp_sender_->set_init_send_encodings(init_encodings);
++
++  RtpParameters params = video_rtp_sender_->GetParameters();
++  ASSERT_EQ(2u, params.encodings.size());
++  EXPECT_EQ(params.encodings[0].max_bitrate_bps, 60000);
++
++  // Simulate the setLocalDescription call as if the user used SDP munging
++  // to disable simulcast.
++  std::vector<uint32_t> ssrcs;
++  ssrcs.reserve(2);
++  for (int i = 0; i < 2; ++i)
++    ssrcs.push_back(kVideoSsrcSimulcast + i);
++  cricket::StreamParams stream_params =
++      cricket::StreamParams::CreateLegacy(kVideoSsrc);
++  video_media_channel()->AddSendStream(stream_params);
++  video_rtp_sender_->SetMediaChannel(video_media_channel());
++  EXPECT_DEATH(video_rtp_sender_->SetSsrc(kVideoSsrcSimulcast), "");
++}
++#endif
++
+ TEST_F(RtpSenderReceiverTest,
+        VideoSenderMustCallGetParametersBeforeSetParametersBeforeNegotiation) {
+   video_rtp_sender_ =
+diff --git a/src/third_party/webrtc/pc/webrtc_sdp.cc b/src/third_party/webrtc/pc/webrtc_sdp.cc
+index 26eb4f30fd..b732bc829d 100644
+--- a/src/third_party/webrtc/pc/webrtc_sdp.cc
++++ b/src/third_party/webrtc/pc/webrtc_sdp.cc
+@@ -3332,7 +3332,6 @@ bool ParseContent(const std::string& message,
+ 
+   // If simulcast is specifed, split the rids into send and receive.
+   // Rids that do not appear in simulcast attribute will be removed.
+-  // If it is not specified, we assume that all rids are for send layers.
+   std::vector<RidDescription> send_rids;
+   std::vector<RidDescription> receive_rids;
+   if (!simulcast.empty()) {
+@@ -3359,7 +3358,11 @@ bool ParseContent(const std::string& message,
+ 
+     media_desc->set_simulcast_description(simulcast);
+   } else {
+-    send_rids = rids;
++    // RID is specified in RFC 8851, which identifies a lot of usages.
++    // We only support RFC 8853 usage of RID, not anything else.
++    // Ignore all RID parameters when a=simulcast is missing.
++    // In particular do NOT do send_rids = rids;
++    RTC_LOG(LS_VERBOSE) << "Ignoring send_rids without simulcast";
+   }
+ 
+   media_desc->set_receive_rids(receive_rids);

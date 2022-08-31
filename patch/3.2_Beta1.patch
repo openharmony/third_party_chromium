@@ -1,0 +1,1929 @@
+diff --git a/base/files/scoped_file.cc b/base/files/scoped_file.cc
+index 2d7bff66cd126..a2e1e6b118ea0 100644
+--- a/base/files/scoped_file.cc
++++ b/base/files/scoped_file.cc
+@@ -31,7 +31,7 @@ void ScopedFDCloseTraits::Free(int fd) {
+   int ret = IGNORE_EINTR(close(fd));
+ 
+ #if defined(OS_LINUX) || defined(OS_CHROMEOS) || defined(OS_APPLE) || \
+-    defined(OS_FUCHSIA) || defined(OS_ANDROID) || defined(OS_OHOS)
++    defined(OS_FUCHSIA) || defined(OS_ANDROID)
+   // NB: Some file descriptors can return errors from close() e.g. network
+   // filesystems such as NFS and Linux input devices. On Linux, macOS, and
+   // Fuchsia's POSIX layer, errors from close other than EBADF do not indicate
+@@ -39,6 +39,8 @@ void ScopedFDCloseTraits::Free(int fd) {
+   if (ret != 0 && errno != EBADF)
+     ret = 0;
+ #endif
++
++  PCHECK(0 == ret);
+ }
+ 
+ #endif  // OS_POSIX || OS_FUCHSIA
+diff --git a/base/memory/platform_shared_memory_region_posix.cc b/base/memory/platform_shared_memory_region_posix.cc
+index 22cc89a40ecca..c8e488667b062 100644
+--- a/base/memory/platform_shared_memory_region_posix.cc
++++ b/base/memory/platform_shared_memory_region_posix.cc
+@@ -37,7 +37,7 @@ bool CheckFDAccessMode(int fd, int expected_mode) {
+   int fd_status = fcntl(fd, F_GETFL);
+   if (fd_status == -1) {
+     // TODO(crbug.com/838365): convert to DLOG when bug fixed.
+-    LOG(ERROR) << "fcntl(" << fd << ", F_GETFL) failed";
++    PLOG(ERROR) << "fcntl(" << fd << ", F_GETFL) failed";
+     return false;
+   }
+ 
+@@ -96,7 +96,7 @@ PlatformSharedMemoryRegion PlatformSharedMemoryRegion::Take(
+   if (size > static_cast<size_t>(std::numeric_limits<int>::max()))
+     return {};
+ 
+-  DCHECK(
++  CHECK(
+       CheckPlatformHandlePermissionsCorrespondToMode(handle.get(), mode, size));
+ 
+   switch (mode) {
+diff --git a/build/config/ohos/config.gni b/build/config/ohos/config.gni
+index 2f7f9f4a80abf..1ad2a5244f1ee 100644
+--- a/build/config/ohos/config.gni
++++ b/build/config/ohos/config.gni
+@@ -18,7 +18,6 @@ if (is_ohos) {
+ 
+   declare_args() {
+     product_name = ""
+-    gpu_switch = "on"
+   }
+ 
+   # Defines the name the ohos build gives to the current host CPU
+@@ -63,75 +60,64 @@ if (is_ohos) {
+ 
+     # ohos include and libs dependencies
+     ohos_src_includes = [
++      "$ohos_build_root/base/location/services/location_locator/callback/include",
++      "$ohos_build_root/base/location/services/location_common/common/include",
++      "$ohos_build_root/base/location/interfaces/inner_api/include",
++      "$ohos_build_root/base/location/services/utils/include",
++      "$ohos_build_root/foundation/bundlemanager/bundle_framework/interfaces/innerkits/libeventhandler/include",
++
+       "$ohos_build_root/foundation/appexecfwk/standard/interfaces/innerkits/libeventhandler/include",
+       "$ohos_build_root/utils/native/base/include",
+       "$ohos_build_root/base/hiviewdfx/hilog/interfaces/native/innerkits/include",
+       "$ohos_build_root/foundation/graphic/graphic/interfaces/inner_api/common",
+-      "$ohos_build_root/foundation/graphic/graphic_2d/interfaces/inner_api/common",
+-      "$ohos_build_root/foundation/graphic/graphic_2d/utils/buffer_handle/export",
+-      "$ohos_build_root/foundation/graphic/standard/interfaces/innerkits/common",
+-      "$ohos_build_root/foundation/graphic/standard/utils/buffer_handle/export",
+       "$ohos_build_root/drivers/peripheral/display/interfaces/include",
+       "$ohos_build_root/foundation/graphic/graphic/utils/buffer_handle/export",
+       "$ohos_build_root/foundation/multimedia/media_standard/interfaces/innerkits/native/media/include",
+-      "$ohos_build_root/foundation/bundlemanager/bundle_framework/interfaces/innerkits/libeventhandler/include",
+-      "$ohos_build_root/foundation/bundlemanager/bundle_framework/interfaces/inner_api/appexecfwk_base/include",
+       "$ohos_build_root/foundation/multimedia/media_standard/interfaces/inner_api/native",
+       "$ohos_build_root/drivers/peripheral/base",
+-      "$ohos_build_root/foundation/graphic/standard/interfaces/innerkits/surface",
+-      "$ohos_build_root/foundation/graphic/surface/interfaces/kits",
+       "$ohos_build_root/foundation/graphic/graphic/interfaces/inner_api/surface",
+-      "$ohos_build_root/foundation/graphic/graphic_2d/interfaces/inner_api/surface",
+-      "$ohos_build_root/foundation/communication/ipc",
++      "$ohos_build_root/foundation/graphic/surface/interfaces/kits",
+       "$ohos_build_root/foundation/communication/ipc/interfaces/innerkits/ipc_core/include",
+       "$ohos_build_root/base/miscservices/inputmethod/frameworks/inputmethod_controller/include",
+       "$ohos_build_root/base/miscservices/inputmethod/services/include",
+       "$ohos_build_root/base/miscservices/inputmethod/frameworks/inputmethod_ability/include",
+       "$ohos_build_root/utils/native/base/include",
+       "$ohos_build_root/foundation/multimodalinput/input/interfaces/native/innerkits/event/include",
+-      "$ohos_build_root/base/location/location_locator/callback/include",
+       "$ohos_build_root/base/location/utils/include",
+       "$ohos_build_root/base/location/interfaces/innerkits/locator_standard/include",
+       "$ohos_build_root/base/location/location_common/common/include",
+-      "$ohos_build_root/base/location/services/location_common/common/include",
+-      "$ohos_build_root/base/location/serviceslocation_locator/callback/include",
+-      "$ohos_build_root/base/location/services/utils/include",
+-      "$ohos_build_root/base/location/interfaces/innerkits/locator_standard/include",
+-      "$ohos_build_root/base/location/interfaces/inner_api/include",
+       "$ohos_build_root/foundation/distributedschedule/samgr/interfaces/innerkits/samgr_proxy/include",
+       "$ohos_build_root/utils/system/safwk/native/include",
+       "$ohos_build_root/foundation/aafwk/standard/interfaces/innerkits/base/include",
+-      "$ohos_build_root/foundation/aafwk/standard/interfaces/innerkits/base/include/ohos/aafwk/base",
+-      "$ohos_build_root/foundation/aafwk/standard/ability_base/interfaces/inner_api/want/include",
+-      "$ohos_build_root/foundation/aafwk/standard/ability_base/interfaces/inner_api/uri/include",
+-      "$ohos_build_root/foundation/aafwk/standard/ability_base/interfaces/inner_api/base/include",
+-      "$ohos_build_root/foundation/aafwk/standard/interfaces/innerkits/uri/include",
+       "$ohos_build_root/foundation/aafwk/standard/interfaces/innerkits/want/include/ohos/aafwk/content",
+       "$ohos_build_root/foundation/appexecfwk/standard/common/log/include",
+       "$ohos_build_root/foundation/appexecfwk/standard/common/perf/include",
+-      "$ohos_build_root/foundation/appexecfwk/standard/interfaces/inner_api/appexecfwk_base/include",
+-      "$ohos_build_root/foundation/appexecfwk/standard/interfaces/innerkits/libeventhandler/include",
+       "$ohos_build_root/foundation/appexecfwk/standard/interfaces/innerkits/appexecfwk_base/include",
+       "$ohos_build_root/foundation/aafwk/standard/interfaces/innerkits/app_manager/include",
+       "$ohos_build_root/foundation/distributedschedule/dmsfwk/services/dtbschedmgr/include",
+-      "$ohos_build_root/developtools/bytrace_standard/interfaces/innerkits/native/include",
+       "$ohos_build_root/third_party/jsoncpp/include",
+       "$ohos_build_root/third_party/json/include",
+-      "$ohos_build_root/base/security/access_token/interfaces/innerkits/accesstoken/include",
++      "$ohos_build_root/base/security/access_token/interfaces/innerkits/accesstoken/include/",
++      "$ohos_build_root/foundation/aafwk/standard/interfaces/innerkits/uri/include",
+       "$ohos_build_root/base/web/webview/ohos_adapter/interfaces",
++      "$ohos_build_root/base/location/services/location_common/common/include",
++      "$ohos_build_root/base/location/interfaces/inner_api/include",
++      "$ohos_build_root/base/location/services/utils/include",
++      "$ohos_build_root/base/location/services/location_locator/callback/include"
+     ]
++
+     if (use_musl) {
+-       if (current_cpu == "arm") {
+-         ohos_libs_dir = [ "$ohos_build_root/out/rk3568/packages/phone/system/lib"]
+-       } else if (current_cpu == "arm64") {
+-         ohos_libs_dir = [ "$ohos_build_root/out/rk3568/packages/phone/system/lib64"]
+-       }
++      if (current_cpu == "arm") {
++        ohos_libs_dir = [ "$ohos_build_root/out/rk3568/packages/phone/system/lib" ]
++      } else if (current_cpu == "arm64") {
++        ohos_libs_dir = [ "$ohos_build_root/out/rk3568/packages/phone/system/lib64" ]
++      }
+     } else {
+-       if (current_cpu == "arm") {
+-         ohos_libs_dir = [ "$ohos_build_root/out/ohos-arm-release/packages/phone/system/lib"]
+-       } else if (current_cpu == "arm64") {
+-         ohos_libs_dir = [ "$ohos_build_root/out/ohos-arm64-release/packages/phone/system/lib64"]
+-       }
++      if (current_cpu == "arm") {
++        ohos_libs_dir = [ "$ohos_build_root/out/ohos-arm-release/packages/phone/system/lib" ]
++      } else if (current_cpu == "arm64") {
++        ohos_libs_dir = [ "$ohos_build_root/out/ohos-arm64-release/packages/phone/system/lib64" ]
++      }
+     }
+   } else {
+     if (use_musl) {
+diff --git a/cc/paint/paint_op_reader.cc b/cc/paint/paint_op_reader.cc
+index 201e67587f1d8..68429994cd952 100644
+--- a/cc/paint/paint_op_reader.cc
++++ b/cc/paint/paint_op_reader.cc
+@@ -310,10 +310,6 @@ void PaintOpReader::Read(PaintImage* image) {
+ 
+         SkImageInfo image_info =
+             SkImageInfo::Make(width, height, color_type, kPremul_SkAlphaType);
+-        if (pixel_size < image_info.computeMinByteSize()) {
+-          SetInvalid();
+-          return;
+-        }
+         const volatile void* pixel_data = ExtractReadableMemory(pixel_size);
+         if (!valid_)
+           return;
+diff --git a/chrome/browser/extensions/BUILD.gn b/chrome/browser/extensions/BUILD.gn
+index 21440d4f9495c..37117db7fcf12 100644
+--- a/chrome/browser/extensions/BUILD.gn
++++ b/chrome/browser/extensions/BUILD.gn
+@@ -792,7 +792,6 @@ static_library("extensions") {
+     "//chrome/browser/safe_browsing",
+     "//chrome/browser/web_applications",
+     "//chrome/browser/web_applications/components",
+-    "//components/security_interstitials/content:security_interstitial_page",
+     "//components/site_engagement/core/mojom:mojo_bindings",
+     "//components/webapps/browser",
+ 
+diff --git a/chrome/browser/extensions/api/debugger/debugger_api.cc b/chrome/browser/extensions/api/debugger/debugger_api.cc
+index 56e2a22db5ec6..429f16cc38f9c 100644
+--- a/chrome/browser/extensions/api/debugger/debugger_api.cc
++++ b/chrome/browser/extensions/api/debugger/debugger_api.cc
+@@ -37,7 +37,6 @@
+ #include "chrome/browser/ui/webui/chrome_web_ui_controller_factory.h"
+ #include "chrome/common/chrome_switches.h"
+ #include "content/public/browser/browser_task_traits.h"
+-#include "components/security_interstitials/content/security_interstitial_tab_helper.h"
+ #include "content/public/browser/browser_thread.h"
+ #include "content/public/browser/devtools_agent_host.h"
+ #include "content/public/browser/notification_service.h"
+@@ -126,14 +125,6 @@ bool ExtensionMayAttachToWebContents(const Extension& extension,
+                                      WebContents& web_contents,
+                                      Profile* profile,
+                                      std::string* error) {
+-  security_interstitials::SecurityInterstitialTabHelper*
+-      security_interstitial_tab_helper = security_interstitials::
+-          SecurityInterstitialTabHelper::FromWebContents(&web_contents);
+-  if (security_interstitial_tab_helper &&
+-      security_interstitial_tab_helper->IsDisplayingInterstitial()) {
+-    *error = debugger_api_constants::kRestrictedError;
+-    return false;
+-  }
+   // This is *not* redundant to the checks below, as
+   // web_contents.GetLastCommittedURL() may be different from
+   // web_contents.GetMainFrame()->GetLastCommittedURL(), with the
+diff --git a/chrome/browser/extensions/api/debugger/debugger_apitest.cc b/chrome/browser/extensions/api/debugger/debugger_apitest.cc
+index 51a2156d26ed8..44bcd6b136d20 100644
+--- a/chrome/browser/extensions/api/debugger/debugger_apitest.cc
++++ b/chrome/browser/extensions/api/debugger/debugger_apitest.cc
+@@ -24,15 +24,9 @@
+ #include "chrome/test/base/ui_test_utils.h"
+ #include "components/infobars/core/infobar.h"
+ #include "components/infobars/core/infobar_delegate.h"
+-#include "components/security_interstitials/content/security_interstitial_controller_client.h"
+-#include "components/security_interstitials/content/security_interstitial_page.h"
+-#include "components/security_interstitials/content/security_interstitial_tab_helper.h"
+-#include "components/security_interstitials/content/settings_page_helper.h"
+-#include "components/security_interstitials/core/metrics_helper.h"
+ #include "components/sessions/content/session_tab_helper.h"
+ #include "content/public/test/browser_test.h"
+ #include "content/public/test/browser_test_utils.h"
+-#include "content/public/test/mock_navigation_handle.h"
+ #include "extensions/browser/extension_function.h"
+ #include "extensions/common/extension.h"
+ #include "extensions/common/extension_builder.h"
+@@ -56,9 +50,6 @@ class DebuggerApiTest : public ExtensionApiTest {
+   // to succeed.
+   testing::AssertionResult RunAttachFunction(const GURL& url,
+                                              const std::string& expected_error);
+-  testing::AssertionResult RunAttachFunction(
+-      const content::WebContents* web_contents,
+-      const std::string& expected_error);
+ 
+   const Extension* extension() const { return extension_.get(); }
+   base::CommandLine* command_line() const { return command_line_; }
+@@ -106,13 +97,9 @@ void DebuggerApiTest::SetUpOnMainThread() {
+ testing::AssertionResult DebuggerApiTest::RunAttachFunction(
+     const GURL& url, const std::string& expected_error) {
+   ui_test_utils::NavigateToURL(browser(), url);
+-  return RunAttachFunction(browser()->tab_strip_model()->GetActiveWebContents(),
+-                           expected_error);
+-}
++  content::WebContents* web_contents =
++      browser()->tab_strip_model()->GetActiveWebContents();
+ 
+-testing::AssertionResult DebuggerApiTest::RunAttachFunction(
+-    const content::WebContents* web_contents,
+-    const std::string& expected_error) {
+   // Attach by tabId.
+   int tab_id = sessions::SessionTabHelper::IdForTab(web_contents).id();
+   std::string debugee_by_tab = base::StringPrintf("{\"tabId\": %d}", tab_id);
+@@ -222,59 +209,6 @@ IN_PROC_BROWSER_TEST_F(DebuggerApiTest,
+   EXPECT_TRUE(RunExtensionTest("debugger_file_access")) << message_;
+ }
+ 
+-class TestInterstitialPage
+-    : public security_interstitials::SecurityInterstitialPage {
+- public:
+-  TestInterstitialPage(content::WebContents* web_contents,
+-                       const GURL& request_url)
+-      : SecurityInterstitialPage(
+-            web_contents,
+-            request_url,
+-            std::make_unique<
+-                security_interstitials::SecurityInterstitialControllerClient>(
+-                web_contents,
+-                CreateTestMetricsHelper(web_contents),
+-                nullptr,
+-                base::i18n::GetConfiguredLocale(),
+-                GURL(),
+-                /* settings_page_helper*/ nullptr)) {}
+-
+-  ~TestInterstitialPage() override = default;
+-  void OnInterstitialClosing() override {}
+-
+- protected:
+-  void PopulateInterstitialStrings(base::Value* load_time_data) override {}
+-
+-  std::unique_ptr<security_interstitials::MetricsHelper>
+-  CreateTestMetricsHelper(content::WebContents* web_contents) {
+-    security_interstitials::MetricsHelper::ReportDetails report_details;
+-    report_details.metric_prefix = "test_blocking_page";
+-    return std::make_unique<security_interstitials::MetricsHelper>(
+-        GURL(), report_details, nullptr);
+-  }
+-};
+-
+-IN_PROC_BROWSER_TEST_F(DebuggerApiTest,
+-                       DebuggerNotAllowedOnSecirutyInterstitials) {
+-  content::WebContents* web_contents =
+-      browser()->tab_strip_model()->GetActiveWebContents();
+-  std::unique_ptr<content::MockNavigationHandle> navigation_handle =
+-      std::make_unique<content::MockNavigationHandle>(
+-          GURL("https://google.com/"), web_contents->GetMainFrame());
+-  navigation_handle->set_has_committed(true);
+-  navigation_handle->set_is_same_document(false);
+-  EXPECT_TRUE(RunAttachFunction(web_contents, ""));
+-
+-  security_interstitials::SecurityInterstitialTabHelper::AssociateBlockingPage(
+-      navigation_handle.get(),
+-      std::make_unique<TestInterstitialPage>(web_contents, GURL()));
+-  security_interstitials::SecurityInterstitialTabHelper::FromWebContents(
+-      web_contents)
+-      ->DidFinishNavigation(navigation_handle.get());
+-
+-  EXPECT_TRUE(RunAttachFunction(web_contents, "Cannot attach to this target."));
+-}
+-
+ IN_PROC_BROWSER_TEST_F(DebuggerApiTest, InfoBar) {
+   int tab_id = sessions::SessionTabHelper::IdForTab(
+                    browser()->tab_strip_model()->GetActiveWebContents())
+diff --git a/chrome/browser/ui/toolbar/media_router_action_controller.cc b/chrome/browser/ui/toolbar/media_router_action_controller.cc
+index b3a1b91dc90bd..9c506973a92aa 100644
+--- a/chrome/browser/ui/toolbar/media_router_action_controller.cc
++++ b/chrome/browser/ui/toolbar/media_router_action_controller.cc
+@@ -21,7 +21,9 @@ MediaRouterActionController::MediaRouterActionController(Profile* profile)
+           profile,
+           media_router::MediaRouterFactory::GetApiForBrowserContext(profile)) {}
+ 
+-MediaRouterActionController::~MediaRouterActionController() = default;
++MediaRouterActionController::~MediaRouterActionController() {
++  DCHECK_EQ(dialog_count_, 0u);
++}
+ 
+ // static
+ bool MediaRouterActionController::IsActionShownByPolicy(Profile* profile) {
+diff --git a/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.cc b/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.cc
+index cc8556fd6a778..b64eaf262f901 100644
+--- a/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.cc
++++ b/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.cc
+@@ -124,15 +124,14 @@ bool MediaRouterDialogControllerViews::IsShowingMediaRouterDialog() const {
+ void MediaRouterDialogControllerViews::Reset() {
+   // If |ui_| is null, Reset() has already been called.
+   if (ui_) {
+-    if (GetActionController())
++    if (IsShowingMediaRouterDialog() && GetActionController())
+       GetActionController()->OnDialogHidden();
+     ui_.reset();
+     MediaRouterDialogController::Reset();
+   }
+ }
+ 
+-void MediaRouterDialogControllerViews::OnWidgetDestroying(
+-    views::Widget* widget) {
++void MediaRouterDialogControllerViews::OnWidgetClosing(views::Widget* widget) {
+   DCHECK(scoped_widget_observations_.IsObservingSource(widget));
+   if (ui_)
+     ui_->LogMediaSinkStatus();
+diff --git a/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h b/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h
+index bf438f4833502..40f19f2894428 100644
+--- a/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h
++++ b/chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h
+@@ -40,7 +40,7 @@ class MediaRouterDialogControllerViews
+   void Reset() override;
+ 
+   // views::WidgetObserver:
+-  void OnWidgetDestroying(views::Widget* widget) override;
++  void OnWidgetClosing(views::Widget* widget) override;
+ 
+   // Sets a callback to be called whenever a dialog is created.
+   void SetDialogCreationCallbackForTesting(base::RepeatingClosure callback);
+diff --git a/chrome/browser/ui/views/media_router/media_router_dialog_controller_views_browsertest.cc b/chrome/browser/ui/views/media_router/media_router_dialog_controller_views_browsertest.cc
+index b20537794e64c..a8fee9a09696d 100644
+--- a/chrome/browser/ui/views/media_router/media_router_dialog_controller_views_browsertest.cc
++++ b/chrome/browser/ui/views/media_router/media_router_dialog_controller_views_browsertest.cc
+@@ -7,7 +7,6 @@
+ #include "chrome/browser/ui/browser.h"
+ #include "chrome/browser/ui/browser_commands.h"
+ #include "chrome/browser/ui/tabs/tab_strip_model.h"
+-#include "chrome/browser/ui/views/global_media_controls/media_dialog_view.h"
+ #include "chrome/browser/ui/views/media_router/cast_dialog_view.h"
+ #include "chrome/browser/ui/views/media_router/media_router_dialog_controller_views.h"
+ #include "chrome/test/base/in_process_browser_test.h"
+@@ -15,8 +14,6 @@
+ #include "content/public/test/browser_test.h"
+ #include "testing/gtest/include/gtest/gtest.h"
+ #include "ui/base/page_transition_types.h"
+-#include "ui/views/test/widget_test.h"
+-#include "ui/views/widget/native_widget_private.h"
+ #include "ui/views/widget/widget.h"
+ 
+ using content::WebContents;
+@@ -29,7 +26,6 @@ class MediaRouterDialogControllerViewsTest : public InProcessBrowserTest {
+   ~MediaRouterDialogControllerViewsTest() override = default;
+ 
+   void OpenMediaRouterDialog();
+-  void CloseWebContents();
+ 
+  protected:
+   WebContents* initiator_;
+@@ -55,10 +51,6 @@ void MediaRouterDialogControllerViewsTest::OpenMediaRouterDialog() {
+   ASSERT_TRUE(dialog_controller_->IsShowingMediaRouterDialog());
+ }
+ 
+-void MediaRouterDialogControllerViewsTest::CloseWebContents() {
+-  initiator_->Close();
+-}
+-
+ // Create/Get a media router dialog for initiator.
+ IN_PROC_BROWSER_TEST_F(MediaRouterDialogControllerViewsTest,
+                        OpenCloseMediaRouterDialog) {
+@@ -71,22 +63,4 @@ IN_PROC_BROWSER_TEST_F(MediaRouterDialogControllerViewsTest,
+   EXPECT_EQ(CastDialogView::GetCurrentDialogWidget(), nullptr);
+ }
+ 
+-// Regression test for crbug.com/1308341.
+-IN_PROC_BROWSER_TEST_F(MediaRouterDialogControllerViewsTest,
+-                       MediaBubbleClosedByPlatform) {
+-  OpenMediaRouterDialog();
+-  base::RunLoop().RunUntilIdle();
+-  views::Widget* widget = CastDialogView::GetCurrentDialogWidget();
+-  ASSERT_TRUE(widget);
+-  EXPECT_TRUE(widget->HasObserver(dialog_controller_));
+-  // The media bubble usually will close itself on deactivation, but
+-  // crbug.com/1308341 shows a state where the browser is not responsive
+-  // to activation change. Simulate that.
+-  CastDialogView::GetInstance()->set_close_on_deactivate(false);
+-  views::test::WidgetDestroyedWaiter waiter(widget);
+-  widget->native_widget_private()->Close();
+-  waiter.Wait();
+-  CloseWebContents();
+-}
+-
+ }  // namespace media_router
+diff --git a/chrome/browser/ui/views/media_router/media_router_ui_browsertest.cc b/chrome/browser/ui/views/media_router/media_router_ui_browsertest.cc
+index ef254708fb390..190cbc6ec350d 100644
+--- a/chrome/browser/ui/views/media_router/media_router_ui_browsertest.cc
++++ b/chrome/browser/ui/views/media_router/media_router_ui_browsertest.cc
+@@ -18,7 +18,6 @@
+ #include "chrome/browser/ui/toolbar/media_router_action_controller.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/media_router/app_menu_test_api.h"
+-#include "chrome/browser/ui/views/media_router/cast_dialog_view.h"
+ #include "chrome/browser/ui/views/media_router/cast_toolbar_button.h"
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+ #include "chrome/common/url_constants.h"
+@@ -34,7 +33,6 @@
+ #include "content/public/test/test_utils.h"
+ #include "ui/base/ui_base_features.h"
+ #include "ui/events/base_event_utils.h"
+-#include "ui/views/test/widget_test.h"
+ #include "ui/views/widget/widget.h"
+ 
+ namespace media_router {
+@@ -118,10 +116,7 @@ IN_PROC_BROWSER_TEST_F(MediaRouterUIBrowserTest, OpenDialogFromContextMenu) {
+   menu.ExecuteCommand(IDC_ROUTE_MEDIA, 0);
+   EXPECT_TRUE(dialog_controller->IsShowingMediaRouterDialog());
+ 
+-  views::test::WidgetDestroyedWaiter waiter(
+-      CastDialogView::GetCurrentDialogWidget());
+   dialog_controller->HideMediaRouterDialog();
+-  waiter.Wait();
+   EXPECT_FALSE(dialog_controller->IsShowingMediaRouterDialog());
+ }
+ 
+@@ -138,11 +133,8 @@ IN_PROC_BROWSER_TEST_F(MediaRouterUIBrowserTest, OpenDialogFromAppMenu) {
+   app_menu_test_api->ExecuteCommand(IDC_ROUTE_MEDIA);
+   EXPECT_TRUE(dialog_controller->IsShowingMediaRouterDialog());
+ 
+-  views::test::WidgetDestroyedWaiter waiter(
+-      CastDialogView::GetCurrentDialogWidget());
+   dialog_controller->HideMediaRouterDialog();
+   EXPECT_FALSE(dialog_controller->IsShowingMediaRouterDialog());
+-  waiter.Wait();
+ }
+ 
+ // TODO(crbug.com/1004635) Disabled due to flake on Windows and Linux
+@@ -164,12 +156,8 @@ IN_PROC_BROWSER_TEST_F(MediaRouterUIBrowserTest,
+ 
+   dialog_controller->ShowMediaRouterDialog(MediaRouterDialogOpenOrigin::PAGE);
+   EXPECT_TRUE(ToolbarIconExists());
+-
+-  views::test::WidgetDestroyedWaiter waiter(
+-      CastDialogView::GetCurrentDialogWidget());
+   // Clicking on the toolbar icon should hide both the dialog and the icon.
+   PressToolbarIcon();
+-  waiter.Wait();
+   EXPECT_FALSE(dialog_controller->IsShowingMediaRouterDialog());
+   EXPECT_FALSE(ToolbarIconExists());
+ 
+@@ -266,32 +254,21 @@ IN_PROC_BROWSER_TEST_F(MediaRouterUIBrowserTest,
+   EXPECT_TRUE(dialog_controller->IsShowingMediaRouterDialog());
+ 
+   // Reload the browser and wait.
+-   {
+-    views::test::WidgetDestroyedWaiter waiter(
+-        CastDialogView::GetCurrentDialogWidget());
+-    content::TestNavigationObserver reload_observer(
+-        browser()->tab_strip_model()->GetActiveWebContents());
+-    chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
+-    reload_observer.Wait();
+-
+-    waiter.Wait();
+-    // The reload should have closed the dialog.
+-    EXPECT_FALSE(dialog_controller->IsShowingMediaRouterDialog());
+-  }
++  content::TestNavigationObserver reload_observer(
++      browser()->tab_strip_model()->GetActiveWebContents());
++  chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
++  reload_observer.Wait();
+ 
++  // The reload should have closed the dialog.
++  EXPECT_FALSE(dialog_controller->IsShowingMediaRouterDialog());
+   PressToolbarIcon();
+   EXPECT_TRUE(dialog_controller->IsShowingMediaRouterDialog());
+ 
+-   {
+-    views::test::WidgetDestroyedWaiter waiter(
+-        CastDialogView::GetCurrentDialogWidget());
+-    // Navigate away.
+-    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
++  // Navigate away.
++  ui_test_utils::NavigateToURL(browser(), GURL("about:blank"));
+ 
+-    // The navigation should have closed the dialog.
+-    waiter.Wait();
+-    EXPECT_FALSE(dialog_controller->IsShowingMediaRouterDialog());
+-  }
++  // The navigation should have closed the dialog.
++  EXPECT_FALSE(dialog_controller->IsShowingMediaRouterDialog());
+   SetAlwaysShowActionPref(false);
+ }
+ 
+diff --git a/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_browsertest.cc b/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_browsertest.cc
+index 8a336cd03fbbe..9cfdcd25f64fd 100644
+--- a/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_browsertest.cc
++++ b/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_browsertest.cc
+@@ -23,13 +23,10 @@
+ #include "chrome/browser/web_applications/components/web_application_info.h"
+ #include "chrome/browser/web_applications/test/web_app_icon_test_utils.h"
+ #include "chrome/test/base/in_process_browser_test.h"
+-#include "components/keep_alive_registry/keep_alive_types.h"
+-#include "components/keep_alive_registry/scoped_keep_alive.h"
+ #include "content/public/test/browser_test.h"
+ #include "content/public/test/browser_test_utils.h"
+ #include "content/public/test/test_utils.h"
+ #include "extensions/browser/extension_dialog_auto_confirm.h"
+-#include "ui/gfx/native_widget_types.h"
+ 
+ using web_app::AppId;
+ 
+@@ -137,47 +134,6 @@ IN_PROC_BROWSER_TEST_F(WebAppUninstallDialogViewBrowserTest,
+   EXPECT_TRUE(was_uninstalled);
+ }
+ 
+-#if BUILDFLAG(IS_MAC)
+-// https://crbug.com/1224161
+-#define MAYBE_UninstallOnCancelShutdownBrowser \
+-  DISABLED_UninstallOnCancelShutdownBrowser
+-#else
+-#define MAYBE_UninstallOnCancelShutdownBrowser UninstallOnCancelShutdownBrowser
+-#endif
+-IN_PROC_BROWSER_TEST_F(WebAppUninstallDialogViewBrowserTest,
+-                       MAYBE_UninstallOnCancelShutdownBrowser) {
+-  extensions::ScopedTestDialogAutoConfirm auto_confirm(
+-      extensions::ScopedTestDialogAutoConfirm::CANCEL);
+-  AppId app_id = InstallTestWebApp(browser()->profile());
+-
+-  std::unique_ptr<web_app::WebAppUninstallDialog> dialog(
+-      web_app::WebAppUninstallDialog::Create(browser()->profile(),
+-                                             gfx::kNullNativeWindow));
+-
+-  base::RunLoop().RunUntilIdle();
+-
+-  base::RunLoop run_loop;
+-  bool was_uninstalled = true;
+-  // ScopedKeepAlive is used by `UninstallWebAppWithDialogFromStartupSwitch`.
+-  // ScopedKeepAlive's destruction triggers browser shutdown when there is no
+-  // open window. This verifies the destruction doesn't race with the dialog
+-  // shutdown itself.
+-  std::unique_ptr<ScopedKeepAlive> scoped_keep_alive =
+-      std::make_unique<ScopedKeepAlive>(KeepAliveOrigin::WEB_APP_UNINSTALL,
+-                                        KeepAliveRestartOption::DISABLED);
+-
+-  chrome::CloseWindow(browser());
+-
+-  dialog->ConfirmUninstall(app_id, webapps::WebappUninstallSource::kAppMenu,
+-                           base::BindLambdaForTesting([&](bool uninstalled) {
+-                             was_uninstalled = uninstalled;
+-                             scoped_keep_alive.reset();
+-                             run_loop.Quit();
+-                           }));
+-  run_loop.Run();
+-  EXPECT_FALSE(was_uninstalled);
+-}
+-
+ IN_PROC_BROWSER_TEST_F(WebAppUninstallDialogViewBrowserTest,
+                        TestDialogUserFlow_Cancel) {
+   extensions::ScopedTestDialogAutoConfirm auto_confirm(
+diff --git a/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_view.cc b/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_view.cc
+index 3cd064cdab731..67ef38f9478ea 100644
+--- a/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_view.cc
++++ b/chrome/browser/ui/views/web_apps/web_app_uninstall_dialog_view.cc
+@@ -141,7 +141,9 @@ void WebAppUninstallDialogDelegateView::OnDialogAccepted() {
+ void WebAppUninstallDialogDelegateView::OnDialogCanceled() {
+   UMA_HISTOGRAM_ENUMERATION("Webapp.UninstallDialogAction",
+                             HistogramCloseAction::kCancelled);
+-  // `dialog_->UninstallCancelled()` is handled in the destructor.
++
++  if (dialog_)
++    std::exchange(dialog_, nullptr)->UninstallCancelled();
+ }
+ 
+ gfx::ImageSkia WebAppUninstallDialogDelegateView::GetWindowIcon() {
+diff --git a/chromecast/graphics/accessibility/fullscreen_magnification_controller.cc b/chromecast/graphics/accessibility/fullscreen_magnification_controller.cc
+index baed03da3b8f3..1412290bed774 100644
+--- a/chromecast/graphics/accessibility/fullscreen_magnification_controller.cc
++++ b/chromecast/graphics/accessibility/fullscreen_magnification_controller.cc
+@@ -101,10 +101,7 @@ FullscreenMagnificationController::FullscreenMagnificationController(
+       this, gesture_provider_client_.get());
+ }
+ 
+-FullscreenMagnificationController::~FullscreenMagnificationController() {
+-  // Destroy `gesture_provider_` before `gesture_provider_client_`.
+-  gesture_provider_.reset();
+-}
++FullscreenMagnificationController::~FullscreenMagnificationController() {}
+ 
+ void FullscreenMagnificationController::SetEnabled(bool enabled) {
+   if (is_enabled_ == enabled)
+diff --git a/components/safe_browsing/core/resources/download_file_types.asciipb b/components/safe_browsing/core/resources/download_file_types.asciipb
+index 1074b7d091ae7..114499d5e44b3 100644
+--- a/components/safe_browsing/core/resources/download_file_types.asciipb
++++ b/components/safe_browsing/core/resources/download_file_types.asciipb
+@@ -8,7 +8,7 @@
+ ##
+ ## Top level settings
+ ##
+-version_id: 50
++version_id: 43
+ sampled_ping_probability: 0.01
+ max_archived_binaries_to_report: 10
+ default_file_type {
+@@ -1743,16 +1743,7 @@ file_types {
+     auto_open_hint: DISALLOW_AUTO_OPEN
+   }
+ }
+-file_types {
+-  extension: "inetloc"
+-  uma_value: 397
+-  ping_setting: FULL_PING
+-  platform_settings {
+-    platform: PLATFORM_MAC
+-    danger_level: DANGEROUS
+-    auto_open_hint: DISALLOW_AUTO_OPEN
+-  }
+-}
++
+ # VBScript files. May open with Windows Script Host and execute with
+ # user privileges.
+ file_types {
+diff --git a/content/browser/child_process_launcher_helper.h b/content/browser/child_process_launcher_helper.h
+index bdeed89696702..6e92b30ed68e9 100644
+--- a/content/browser/child_process_launcher_helper.h
++++ b/content/browser/child_process_launcher_helper.h
+@@ -48,7 +48,7 @@
+ #endif
+ 
+ #if defined(OS_OHOS)
+-#include "appmgr/app_mgr_client.h"
++#include "ohos_adapter_helper.h"
+ #endif
+ 
+ namespace base {
+@@ -262,7 +262,7 @@ class ChildProcessLauncherHelper :
+ #endif
+ 
+ #if defined(OS_OHOS)
+-  std::unique_ptr<OHOS::AppExecFwk::AppMgrClient> app_mgr_client_{nullptr};
++  std::unique_ptr<OHOS::NWeb::AafwkAppMgrClientAdapter> app_mgr_client_adapter_{nullptr};
+ #endif
+ };
+ 
+diff --git a/content/browser/child_process_launcher_helper_linux.cc b/content/browser/child_process_launcher_helper_linux.cc
+index 4d65ac4f4499e..0bdff0732df8e 100644
+--- a/content/browser/child_process_launcher_helper_linux.cc
++++ b/content/browser/child_process_launcher_helper_linux.cc
+@@ -120,10 +120,10 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
+     int32_t shared_fd = options.fds_to_remap[SHARED_FD_INDEX].first;
+     int32_t ipc_fd = options.fds_to_remap[IPC_FD_INDEX].first;
+     pid_t render_pid = 0;
+-    if (app_mgr_client_ == nullptr) {
+-      app_mgr_client_ = std::make_unique<OHOS::AppExecFwk::AppMgrClient>();
++    if (app_mgr_client_adapter_ == nullptr) {
++      app_mgr_client_adapter_ = OHOS::NWeb::OhosAdapterHelper::GetInstance().CreateAafwkAdapter();
+     }
+-    int ret = app_mgr_client_->StartRenderProcess(argv_ss.str(), ipc_fd, shared_fd, render_pid);
++    int ret = app_mgr_client_adapter_->StartRenderProcess(argv_ss.str(), ipc_fd, shared_fd, render_pid);
+     if (ret != 0) {
+       LOG(ERROR) << "start render process error, ret=" << ret << ", render pid=" << render_pid;
+       process.process = base::Process();
+@@ -186,9 +186,9 @@ ChildProcessTerminationInfo ChildProcessLauncherHelper::GetTerminationInfo(
+     info.status = process.zygote->GetTerminationStatus(
+         process.process.Handle(), known_dead, &info.exit_code);
+ #if defined(OS_OHOS)
+-  } else if (app_mgr_client_) {
++  } else if (app_mgr_client_adapter_) {
+     int exitStatus;
+-    int ret = app_mgr_client_->GetRenderProcessTerminationStatus(process.process.Handle(), exitStatus);
++    int ret = app_mgr_client_adapter_->GetRenderProcessTerminationStatus(process.process.Handle(), exitStatus);
+     if (ret != 0) {
+       LOG(ERROR) << "get render process termination status failed, ret = " << ret;
+     } else if (exitStatus < 0) {
+diff --git a/content/browser/devtools/protocol/devtools_protocol_browsertest.cc b/content/browser/devtools/protocol/devtools_protocol_browsertest.cc
+index 613ae49aed478..dfeab9ee4c130 100644
+--- a/content/browser/devtools/protocol/devtools_protocol_browsertest.cc
++++ b/content/browser/devtools/protocol/devtools_protocol_browsertest.cc
+@@ -472,8 +472,7 @@ class CaptureScreenshotTest : public DevToolsProtocolTest {
+       bool from_surface,
+       const gfx::RectF& clip = gfx::RectF(),
+       float clip_scale = 0,
+-      bool capture_beyond_viewport = false,
+-      bool expect_error = false) {
++      bool capture_beyond_viewport = false) {
+     std::unique_ptr<base::DictionaryValue> params(new base::DictionaryValue());
+     params->SetString("format", encoding == ENCODING_PNG ? "png" : "jpeg");
+     params->SetInteger("quality", 100);
+@@ -493,24 +492,16 @@ class CaptureScreenshotTest : public DevToolsProtocolTest {
+     }
+     SendCommand("Page.captureScreenshot", std::move(params));
+ 
++    std::string base64;
++    EXPECT_TRUE(result_->GetString("data", &base64));
+     std::unique_ptr<SkBitmap> result_bitmap;
+-    if (expect_error) {
+-      EXPECT_THAT(error_, base::test::DictionaryHasValue(
+-                              "code", base::Value(static_cast<int>(
+-                                          crdtp::DispatchCode::SERVER_ERROR))));
++    if (encoding == ENCODING_PNG) {
++      result_bitmap.reset(new SkBitmap());
++      EXPECT_TRUE(DecodePNG(base64, result_bitmap.get()));
+     } else {
+-      std::string base64;
+-      EXPECT_TRUE(result_->GetString("data", &base64));
+-      if (encoding == ScreenshotEncoding::ENCODING_PNG) {
+-        result_bitmap = std::make_unique<SkBitmap>();
+-        EXPECT_TRUE(DecodePNG(base64, result_bitmap.get()));
+-      } else if (encoding == ScreenshotEncoding::ENCODING_JPEG) {
+-        result_bitmap = DecodeJPEG(base64);
+-      } else {
+-        // Decode not implemented.
+-      }
+-      EXPECT_TRUE(result_bitmap);
++      result_bitmap = DecodeJPEG(base64);
+     }
++    EXPECT_TRUE(result_bitmap);
+     return result_bitmap;
+   }
+ 
+@@ -609,10 +600,6 @@ class CaptureScreenshotTest : public DevToolsProtocolTest {
+     SendCommand("Emulation.clearDeviceMetricsOverride", nullptr);
+   }
+ 
+-  bool MayAttachToBrowser() override { return may_attach_to_browser_; }
+-
+-  bool may_attach_to_browser_ = true;
+-
+  private:
+ #if !defined(OS_ANDROID)
+   void SetUp() override {
+@@ -961,17 +948,6 @@ IN_PROC_BROWSER_TEST_F(CaptureScreenshotTest, TransparentScreenshots) {
+ #endif  // !defined(OS_ANDROID)
+ }
+ 
+-IN_PROC_BROWSER_TEST_F(CaptureScreenshotTest,
+-                       OnlyScreenshotsFromSurfaceWhenUnsafeNotAllowed) {
+-  may_attach_to_browser_ = false;
+-  shell()->LoadURL(GURL("about:blank"));
+-  EXPECT_TRUE(WaitForLoadStop(shell()->web_contents()));
+-  Attach();
+-
+-  CaptureScreenshot(ScreenshotEncoding::ENCODING_PNG, false, gfx::RectF(), 0, true,
+-                    true);
+-}
+-
+ #if defined(OS_ANDROID)
+ // Disabled, see http://crbug.com/469947.
+ IN_PROC_BROWSER_TEST_F(DevToolsProtocolTest, DISABLED_SynthesizePinchGesture) {
+diff --git a/content/browser/devtools/protocol/page_handler.cc b/content/browser/devtools/protocol/page_handler.cc
+index 7b7719648da4b..554b129494cab 100644
+--- a/content/browser/devtools/protocol/page_handler.cc
++++ b/content/browser/devtools/protocol/page_handler.cc
+@@ -184,8 +184,7 @@ bool CanExecuteGlobalCommands(
+ 
+ PageHandler::PageHandler(EmulationHandler* emulation_handler,
+                          BrowserHandler* browser_handler,
+-                         bool allow_file_access,
+-                         bool may_capture_screenshots_not_from_surface)
++                         bool allow_file_access)
+     : DevToolsDomainHandler(Page::Metainfo::domainName),
+       enabled_(false),
+       screencast_enabled_(false),
+@@ -201,9 +200,7 @@ PageHandler::PageHandler(EmulationHandler* emulation_handler,
+       last_surface_size_(gfx::Size()),
+       host_(nullptr),
+       emulation_handler_(emulation_handler),
+-      browser_handler_(browser_handler),
+-      may_capture_screenshots_not_from_surface_(
+-          may_capture_screenshots_not_from_surface) {
++      browser_handler_(browser_handler) {
+   bool create_video_consumer = true;
+ #ifdef OS_ANDROID
+   // Video capture doesn't work on Android WebView. Use CopyFromSurface instead.
+@@ -718,11 +715,6 @@ void PageHandler::CaptureScreenshot(
+ 
+   // We don't support clip/emulation when capturing from window, bail out.
+   if (!from_surface.fromMaybe(true)) {
+-    if (!may_capture_screenshots_not_from_surface_) {
+-      callback->sendFailure(
+-          Response::ServerError("Only screenshots from surface are allowed."));
+-      return;
+-    }
+     widget_host->GetSnapshotFromBrowser(
+         base::BindOnce(&PageHandler::ScreenshotCaptured,
+                        weak_factory_.GetWeakPtr(), std::move(callback),
+diff --git a/content/browser/devtools/protocol/page_handler.h b/content/browser/devtools/protocol/page_handler.h
+index e5507b97181b2..be667cb7da784 100644
+--- a/content/browser/devtools/protocol/page_handler.h
++++ b/content/browser/devtools/protocol/page_handler.h
+@@ -65,8 +65,7 @@ class PageHandler : public DevToolsDomainHandler,
+  public:
+   PageHandler(EmulationHandler* emulation_handler,
+               BrowserHandler* browser_handler,
+-              bool allow_file_access,
+-              bool may_capture_screenshots_not_from_surface);
++              bool allow_file_access);
+   ~PageHandler() override;
+ 
+   static std::vector<PageHandler*> EnabledForWebContents(
+@@ -239,7 +238,6 @@ class PageHandler : public DevToolsDomainHandler,
+   RenderFrameHostImpl* host_;
+   EmulationHandler* emulation_handler_;
+   BrowserHandler* browser_handler_;
+-  const bool may_capture_screenshots_not_from_surface_;
+ 
+   std::unique_ptr<Page::Frontend> frontend_;
+ 
+diff --git a/content/browser/devtools/render_frame_devtools_agent_host.cc b/content/browser/devtools/render_frame_devtools_agent_host.cc
+index 7dc7937b90801..2bbe13752c446 100644
+--- a/content/browser/devtools/render_frame_devtools_agent_host.cc
++++ b/content/browser/devtools/render_frame_devtools_agent_host.cc
+@@ -331,8 +331,7 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session,
+       GetId(), GetRendererChannel(), session->GetRootSession()));
+   session->AddHandler(std::make_unique<protocol::PageHandler>(
+       emulation_handler_ptr, browser_handler_ptr,
+-      session->GetClient()->MayReadLocalFiles(),
+-      session->GetClient()->MayAttachToBrowser()));
++      session->GetClient()->MayReadLocalFiles()));
+   session->AddHandler(std::make_unique<protocol::SecurityHandler>());
+   if (!frame_tree_node_ || !frame_tree_node_->parent()) {
+     session->AddHandler(std::make_unique<protocol::TracingHandler>(
+diff --git a/content/browser/file_system_access/file_system_access_directory_handle_impl.cc b/content/browser/file_system_access/file_system_access_directory_handle_impl.cc
+index 19abb01eb5489..b386fe1dca1b7 100644
+--- a/content/browser/file_system_access/file_system_access_directory_handle_impl.cc
++++ b/content/browser/file_system_access/file_system_access_directory_handle_impl.cc
+@@ -409,13 +409,10 @@ namespace {
+ bool IsShellIntegratedExtension(const base::FilePath::StringType& extension) {
+   base::FilePath::StringType extension_lower = base::ToLowerASCII(extension);
+ 
+-  // .lnk and .scf files may be used to execute arbitrary code (see
+-  // https://nvd.nist.gov/vuln/detail/CVE-2010-2568 and
+-  // https://crbug.com/1227995, respectively).
+-  if (extension_lower == FILE_PATH_LITERAL("lnk") ||
+-      extension_lower == FILE_PATH_LITERAL("scf")) {
++  // .lnk files may be used to execute arbitrary code (see
++  // https://nvd.nist.gov/vuln/detail/CVE-2010-2568).
++  if (extension_lower == FILE_PATH_LITERAL("lnk"))
+     return true;
+-  }
+ 
+   // Setting a file's extension to a CLSID may conceal its actual file type on
+   // some Windows versions (see https://nvd.nist.gov/vuln/detail/CVE-2004-0420).
+diff --git a/content/browser/file_system_access/file_system_access_manager_impl.cc b/content/browser/file_system_access/file_system_access_manager_impl.cc
+index a64d8f47cbeb7..a47eceba374b2 100644
+--- a/content/browser/file_system_access/file_system_access_manager_impl.cc
++++ b/content/browser/file_system_access/file_system_access_manager_impl.cc
+@@ -480,16 +480,6 @@ void FileSystemAccessManagerImpl::SetDefaultPathAndShowPicker(
+                                   suggested_name, std::string(), std::string())
+           : base::FilePath();
+ 
+-  auto suggested_extension = suggested_name_path.Extension();
+-  // Our version of `IsShellIntegratedExtension()` is more stringent than
+-  // the version used in `net::GenerateFileName()`. See
+-  // `FileSystemChooser::IsShellIntegratedExtension()` for details.
+-  if (FileSystemChooser::IsShellIntegratedExtension(suggested_extension)) {
+-    suggested_extension = FILE_PATH_LITERAL("download");
+-    suggested_name_path =
+-        suggested_name_path.ReplaceExtension(suggested_extension);
+-  }
+-
+   FileSystemChooser::Options file_system_chooser_options(
+       GetSelectFileDialogType(options), GetAndMoveAcceptsTypesInfo(options),
+       std::move(default_directory), std::move(suggested_name_path));
+diff --git a/content/browser/file_system_access/file_system_chooser.cc b/content/browser/file_system_access/file_system_chooser.cc
+index dc02983400070..fa4c151286a2c 100644
+--- a/content/browser/file_system_access/file_system_chooser.cc
++++ b/content/browser/file_system_access/file_system_chooser.cc
+@@ -71,6 +71,30 @@ base::FilePath::StringType GetLastExtension(
+              : extension;
+ }
+ 
++// Returns whether the specified extension receives special handling by the
++// Windows shell.
++bool IsShellIntegratedExtension(const base::FilePath::StringType& extension) {
++  // TODO(https://crbug.com/1154757): Figure out some way to unify this with
++  // net::IsSafePortablePathComponent, with the result probably ending up in
++  // base/i18n/file_util_icu.h.
++  base::FilePath::StringType extension_lower = base::ToLowerASCII(extension);
++
++  // .lnk files may be used to execute arbitrary code (see
++  // https://nvd.nist.gov/vuln/detail/CVE-2010-2568). .local files are used by
++  // Windows to determine which DLLs to load for an application.
++  if ((extension_lower == FILE_PATH_LITERAL("local")) ||
++      (extension_lower == FILE_PATH_LITERAL("lnk")))
++    return true;
++
++  // Setting a file's extension to a CLSID may conceal its actual file type on
++  // some Windows versions (see https://nvd.nist.gov/vuln/detail/CVE-2004-0420).
++  if (!extension_lower.empty() &&
++      (extension_lower.front() == FILE_PATH_LITERAL('{')) &&
++      (extension_lower.back() == FILE_PATH_LITERAL('}')))
++    return true;
++  return false;
++}
++
+ // Extension validation primarily takes place in the renderer. This checks for a
+ // subset of invalid extensions in the event the renderer is compromised.
+ bool IsInvalidExtension(base::FilePath::StringType& extension) {
+@@ -78,7 +102,7 @@ bool IsInvalidExtension(base::FilePath::StringType& extension) {
+   auto extension16 = base::UTF8ToUTF16(component8.c_str());
+ 
+   return !base::i18n::IsFilenameLegal(extension16) ||
+-	 FileSystemChooser::IsShellIntegratedExtension(extension);
++         IsShellIntegratedExtension(GetLastExtension(extension));
+ }
+ 
+ // Converts the accepted mime types and extensions from |option| into a list
+@@ -265,40 +289,6 @@ void FileSystemChooser::CreateAndShow(
+       /*params=*/nullptr);
+ }
+ 
+-// static
+-bool FileSystemChooser::IsShellIntegratedExtension(
+-    const base::FilePath::StringType& extension) {
+-  // TODO(https://crbug.com/1154757): Figure out some way to unify this with
+-  // net::IsSafePortablePathComponent, with the result probably ending up in
+-  // base/i18n/file_util_icu.h.
+-  // - For the sake of consistency across platforms, we sanitize '.lnk' and
+-  //   '.local' files on all platforms (not just Windows)
+-  // - There are some extensions (i.e. '.scf') we would like to sanitize which
+-  //   `net::GenerateFileName()` does not
+-  base::FilePath::StringType extension_lower =
+-      base::ToLowerASCII(GetLastExtension(extension));
+-
+-  // .lnk and .scf files may be used to execute arbitrary code (see
+-  // https://nvd.nist.gov/vuln/detail/CVE-2010-2568 and
+-  // https://crbug.com/1227995, respectively). .local files are used by Windows
+-  // to determine which DLLs to load for an application.
+-  if ((extension_lower == FILE_PATH_LITERAL("lnk")) ||
+-      (extension_lower == FILE_PATH_LITERAL("local")) ||
+-      (extension_lower == FILE_PATH_LITERAL("scf"))) {
+-    return true;
+-  }
+-
+-  // Setting a file's extension to a CLSID may conceal its actual file type on
+-  // some Windows versions (see https://nvd.nist.gov/vuln/detail/CVE-2004-0420).
+-  if (!extension_lower.empty() &&
+-      (extension_lower.front() == FILE_PATH_LITERAL('{')) &&
+-      (extension_lower.back() == FILE_PATH_LITERAL('}'))) {
+-    return true;
+-  }
+-
+-  return false;
+-}
+-
+ FileSystemChooser::FileSystemChooser(ui::SelectFileDialog::Type type,
+                                      ResultCallback callback,
+                                      base::ScopedClosureRunner fullscreen_block)
+diff --git a/content/browser/file_system_access/file_system_chooser.h b/content/browser/file_system_access/file_system_chooser.h
+index fdb6012ca5c41..8b672a278222f 100644
+--- a/content/browser/file_system_access/file_system_chooser.h
++++ b/content/browser/file_system_access/file_system_chooser.h
+@@ -68,12 +68,6 @@ class CONTENT_EXPORT FileSystemChooser : public ui::SelectFileDialog::Listener {
+                             ResultCallback callback,
+                             base::ScopedClosureRunner fullscreen_block);
+ 
+-  // Returns whether the specified extension receives special handling by the
+-  // Windows shell. These extensions should be sanitized before being shown in
+-  // the "save as" file picker.
+-  static bool IsShellIntegratedExtension(
+-      const base::FilePath::StringType& extension);
+-
+   FileSystemChooser(ui::SelectFileDialog::Type type,
+                     ResultCallback callback,
+                     base::ScopedClosureRunner fullscreen_block);
+diff --git a/content/browser/file_system_access/file_system_chooser_browsertest.cc b/content/browser/file_system_access/file_system_chooser_browsertest.cc
+index f65ef61e4cb85..72ff09ab098d3 100644
+--- a/content/browser/file_system_access/file_system_chooser_browsertest.cc
++++ b/content/browser/file_system_access/file_system_chooser_browsertest.cc
+@@ -1321,28 +1321,22 @@ IN_PROC_BROWSER_TEST_F(FileSystemChooserBrowserTest, SuggestedName) {
+   name_infos.push_back({"not_matching.jpg", ListValueOf(".txt"), false,
+                         "not_matching.jpg", false});
+ 
+-  // ".lnk", ".local", and ".scf" extensions should be sanitized.
++#if defined(OS_WIN)
++  // ".local" and ".lnk" extensions should be sanitized on Windows.
+   name_infos.push_back({"dangerous_extension.local", ListValueOf(".local"),
+                         true, "dangerous_extension.download", false});
+   name_infos.push_back({"dangerous_extension.lnk", ListValueOf(".lnk"), true,
+                         "dangerous_extension.download", false});
+-  name_infos.push_back({"dangerous_extension.scf", ListValueOf(".scf"), true,
+-                        "dangerous_extension.download", false});
+-  // Compound extensions ending in a dangerous extension should be sanitized.
+-  name_infos.push_back({"dangerous_extension.png.local", ListValueOf(".local"),
+-                        true, "dangerous_extension.png.download", false});
+-  name_infos.push_back({"dangerous_extension.png.lnk", ListValueOf(".lnk"),
+-                        true, "dangerous_extension.png.download", false});
+-  name_infos.push_back({"dangerous_extension.png.scf", ListValueOf(".scf"),
+-                        true, "dangerous_extension.png.download", false});
+-  // Compound extensions not ending in a dangerous extension should not be
+-  // sanitized.
+-  name_infos.push_back({"dangerous_extension.local.png", ListValueOf(".png"),
+-                        true, "dangerous_extension.local.png", true});
+-  name_infos.push_back({"dangerous_extension.lnk.png", ListValueOf(".png"),
+-                        true, "dangerous_extension.lnk.png", true});
+-  name_infos.push_back({"dangerous_extension.scf.png", ListValueOf(".png"),
+-                        true, "dangerous_extension.scf.png", true});
++#else
++  // ".local" and ".lnk" extensions should be allowed on other OSes.
++  // TODO(https://crbug.com/1154757): `expected_exclude_accept_all_option` is
++  // false here because ".local" and ".lnk" extensions are not allowed in
++  // `accepts`, but are only sanitized by net::GenerateSafeFileName on Windows.
++  name_infos.push_back({"dangerous_extension.local", ListValueOf(".local"),
++                        true, "dangerous_extension.local", false});
++  name_infos.push_back({"dangerous_extension.lnk", ListValueOf(".lnk"), true,
++                        "dangerous_extension.lnk", false});
++#endif
+   // Invalid characters should be sanitized.
+   name_infos.push_back({R"(inv*l:d\\charבאמת!a<ters🤓.txt)",
+                         ListValueOf(".txt"), true,
+diff --git a/content/browser/file_system_access/file_system_chooser_unittest.cc b/content/browser/file_system_access/file_system_chooser_unittest.cc
+index e684acb8d4c29..1a590252fe118 100644
+--- a/content/browser/file_system_access/file_system_chooser_unittest.cc
++++ b/content/browser/file_system_access/file_system_chooser_unittest.cc
+@@ -189,7 +189,7 @@ TEST_F(FileSystemChooserTest, IgnoreShellIntegratedExtensions) {
+   accepts.emplace_back(blink::mojom::ChooseFileSystemEntryAcceptsOption::New(
+       base::ASCIIToUTF16(""), std::vector<std::string>({}),
+       std::vector<std::string>(
+-          {"lnk", "foo.lnk", "foo.bar.local", "text", "local", "scf"})));
++          {"lnk", "foo.lnk", "foo.bar.local", "text", "local"})));
+   SyncShowDialog(std::move(accepts), /*include_accepts_all=*/false);
+ 
+   ASSERT_TRUE(dialog_params.file_types);
+diff --git a/content/renderer/BUILD.gn b/content/renderer/BUILD.gn
+index 9325b963834ef..810393cab2548 100644
+--- a/content/renderer/BUILD.gn
++++ b/content/renderer/BUILD.gn
+@@ -23,16 +23,7 @@ if (is_ohos) {
+   import("//build/config/ohos/config.gni")
+   config("ohos_system_libs") {
+     libs = [
+-      "hilog",
+-      "utils.z",
+-      "eventhandler.z",
+-      "app_manager.z",
+-      "base.z",
+-      "want.z",
+-      "appexecfwk_common.z",
+-      "appexecfwk_base.z",
+-      "samgr_proxy.z",
+-      "ipc_core.z",
++      "nweb_ohos_adapter.z"
+     ]
+     include_dirs = ohos_src_includes
+     lib_dirs = ohos_libs_dir
+diff --git a/content/renderer/render_remote_proxy.cc b/content/renderer/render_remote_proxy.cc
+index 858d5e4c01c62..1d0a8b369793f 100644
+--- a/content/renderer/render_remote_proxy.cc
++++ b/content/renderer/render_remote_proxy.cc
+@@ -5,16 +5,15 @@
+ #include "render_remote_proxy.h"
+ 
+ #include <thread>
+-#include "appmgr/app_mgr_client.h"
+ #include "base/command_line.h"
+ #include "base/posix/global_descriptors.h"
+ #include "content/public/common/content_descriptors.h"
+ #include "content/public/common/content_switches.h"
+-#include "refbase.h"
++#include "ohos_adapter_helper.h"
+ 
+ namespace content {
+-std::unique_ptr<OHOS::AppExecFwk::AppMgrClient> g_app_mgr_client{nullptr};
+-OHOS::sptr<RenderRemoteProxy> g_render_remote_proxy{nullptr};
++std::unique_ptr<OHOS::NWeb::AafwkAppMgrClientAdapter> g_app_mgr_client_adapter{nullptr};
++std::shared_ptr<RenderRemoteProxy> g_render_remote_proxy{nullptr};
+ 
+ std::mutex RenderRemoteProxy::browser_fd_mtx_;
+ std::condition_variable RenderRemoteProxy::browser_fd_cv_;
+@@ -53,9 +52,9 @@ void RenderRemoteProxy::NotifyBrowserFd(int32_t ipcFd, int32_t sharedFd) {
+ void RenderRemoteProxy::CreateAndRegist(const base::CommandLine& command_line) {
+   is_for_test_ = command_line.HasSwitch(switches::kForTest);
+   if (!is_for_test_) {
+-    g_app_mgr_client = std::make_unique<OHOS::AppExecFwk::AppMgrClient>();
+-    g_render_remote_proxy = new RenderRemoteProxy();
+-    g_app_mgr_client->AttachRenderProcess(g_render_remote_proxy);
++    g_app_mgr_client_adapter = OHOS::NWeb::OhosAdapterHelper::GetInstance().CreateAafwkAdapter();
++    g_render_remote_proxy = std::make_shared<RenderRemoteProxy>();
++    g_app_mgr_client_adapter->AttachRenderProcess(g_render_remote_proxy);
+   }
+ }
+ 
+@@ -72,7 +71,7 @@ bool RenderRemoteProxy::WaitForBrowserFd() {
+     if (!browser_fd_cv_.wait_for(lk, std::chrono::milliseconds(kTimeOutDur),
+                                  []() { return is_browser_fd_received_; })) {
+       LOG(INFO) << "retry AttachRenderProcess for " << wait_count << "time";
+-      g_app_mgr_client->AttachRenderProcess(g_render_remote_proxy);
++      g_app_mgr_client_adapter->AttachRenderProcess(g_render_remote_proxy);
+     } else {
+       LOG(INFO) << "success, wait for browser fd end";
+       return true;
+diff --git a/content/renderer/render_remote_proxy.h b/content/renderer/render_remote_proxy.h
+index 1127280fbf712..c6e3b98b25a98 100644
+--- a/content/renderer/render_remote_proxy.h
++++ b/content/renderer/render_remote_proxy.h
+@@ -7,14 +7,14 @@
+ 
+ #include <condition_variable>
+ #include <mutex>
+-#include "appmgr/render_scheduler_host.h"
++#include "aafwk_render_scheduler_host_adapter.h"
+ 
+ namespace base {
+ class CommandLine;
+ }
+ 
+ namespace content {
+-class RenderRemoteProxy : public OHOS::AppExecFwk::RenderSchedulerHost {
++class RenderRemoteProxy : public OHOS::NWeb::AafwkRenderSchedulerHostAdapter {
+  public:
+   RenderRemoteProxy() = default;
+   ~RenderRemoteProxy() = default;
+diff --git a/gpu/command_buffer/service/gles2_cmd_decoder.cc b/gpu/command_buffer/service/gles2_cmd_decoder.cc
+index d1c0e3bd9e0d4..6ff497088434f 100644
+--- a/gpu/command_buffer/service/gles2_cmd_decoder.cc
++++ b/gpu/command_buffer/service/gles2_cmd_decoder.cc
+@@ -6803,6 +6803,8 @@ void GLES2DecoderImpl::InvalidateFramebufferImpl(
+       }
+     } else {
+       if (!validators_->backbuffer_attachment.IsValid(attachment)) {
++        LOCAL_SET_GL_ERROR_INVALID_ENUM(function_name, attachment,
++                                        "attachments");
+         return;
+       }
+     }
+diff --git a/ohos_nweb/BUILD.gn b/ohos_nweb/BUILD.gn
+index c8b528bdb16f9..1fd2aea892ae5 100644
+--- a/ohos_nweb/BUILD.gn
++++ b/ohos_nweb/BUILD.gn
+@@ -64,6 +64,7 @@ component("cef_nweb") {
+   sources = [
+     "src/cef_delegate/nweb_application.h",
+     "src/cef_delegate/nweb_application.cc",
++    "src/cef_delegate/nweb_input_delegate.cc",
+     "src/cef_delegate/nweb_handler_delegate.h",
+     "src/cef_delegate/nweb_handler_delegate.cc",
+     "src/cef_delegate/nweb_delegate.cc",
+diff --git a/ohos_nweb/include/nweb.h b/ohos_nweb/include/nweb.h
+index ebc8a83f55934..8c93edb7ba272 100755
+--- a/ohos_nweb/include/nweb.h
++++ b/ohos_nweb/include/nweb.h
+@@ -73,6 +73,7 @@ class OHOS_NWEB_EXPORT NWeb : public std::enable_shared_from_this<NWeb> {
+     virtual void OnTouchMove(int32_t id, double x, double y) = 0;
+     virtual void OnTouchCancel() = 0;
+     virtual void OnNavigateBack() = 0;
++    virtual bool SendKeyEvent(int32_t keyCode, int32_t keyAction) = 0;
+ 
+     /**
+      * Loads the given URL.
+diff --git a/ohos_nweb/src/cef_delegate/nweb_delegate.cc b/ohos_nweb/src/cef_delegate/nweb_delegate.cc
+index 266d00d84296d..4a47e77222920 100755
+--- a/ohos_nweb/src/cef_delegate/nweb_delegate.cc
++++ b/ohos_nweb/src/cef_delegate/nweb_delegate.cc
+@@ -147,6 +147,14 @@ void NWebDelegate::OnTouchCancel() {
+   }
+ }
+ 
++bool NWebDelegate::SendKeyEvent(int32_t keyCode, int32_t keyAction) {
++  bool retVal = false;
++  if (event_handler_ != nullptr) {
++    retVal = event_handler_->SendKeyEvent(keyCode, keyAction);
++  }
++  return retVal;
++}
++
+ std::shared_ptr<NWebPreference> NWebDelegate::GetPreference() const {
+   return preference_delegate_;
+ }
+diff --git a/ohos_nweb/src/cef_delegate/nweb_delegate.h b/ohos_nweb/src/cef_delegate/nweb_delegate.h
+index d1792e1e011e0..63ad48c690a29 100755
+--- a/ohos_nweb/src/cef_delegate/nweb_delegate.h
++++ b/ohos_nweb/src/cef_delegate/nweb_delegate.h
+@@ -51,6 +51,7 @@ class NWebDelegate : public NWebDelegateInterface,
+   void OnTouchRelease(int32_t id, double x, double y) override;
+   void OnTouchMove(int32_t id, double x, double y) override;
+   void OnTouchCancel() override;
++  bool SendKeyEvent(int32_t keyCode, int32_t keyAction) override;
+ 
+   void Load(const std::string& url) override;
+   bool IsNavigatebackwardAllowed() const override;
+diff --git a/ohos_nweb/src/cef_delegate/nweb_event_handler.cc b/ohos_nweb/src/cef_delegate/nweb_event_handler.cc
+index ced49179e0e0f..99d1b5f0e7232 100644
+--- a/ohos_nweb/src/cef_delegate/nweb_event_handler.cc
++++ b/ohos_nweb/src/cef_delegate/nweb_event_handler.cc
+@@ -82,4 +82,16 @@ void NWebEventHandler::OnTouchCancel() {
+     browser_->GetHost()->SendTouchEvent(touch_cancelled);
+   }
+ }
++
++bool NWebEventHandler::SendKeyEvent(int32_t keyCode, int32_t keyAction) {
++  CefKeyEvent keyEvent;
++  input_delegate_.SetModifiers(keyCode, keyAction);
++  keyEvent.windows_key_code = NWebInputDelegate::CefConverter("keycode", keyCode);
++  keyEvent.type = static_cast<cef_key_event_type_t>(NWebInputDelegate::CefConverter("keyaction", keyAction));
++  keyEvent.modifiers = input_delegate_.GetModifiers();
++  if (browser_ && browser_->GetHost()) {
++    browser_->GetHost()->SendKeyEvent(keyEvent);
++  }
++  return false;
++}
+ }  // namespace OHOS::NWeb
+diff --git a/ohos_nweb/src/cef_delegate/nweb_event_handler.h b/ohos_nweb/src/cef_delegate/nweb_event_handler.h
+index 1ca96dc20155b..0ef2e92f3e0a6 100644
+--- a/ohos_nweb/src/cef_delegate/nweb_event_handler.h
++++ b/ohos_nweb/src/cef_delegate/nweb_event_handler.h
+@@ -17,6 +17,7 @@
+ #define NWEB_EVENT_HANDLER_H
+ 
+ #include "cef/include/cef_client.h"
++#include "nweb_input_delegate.h"
+ 
+ namespace OHOS::NWeb {
+ class NWebEventHandler {
+@@ -34,9 +35,11 @@ class NWebEventHandler {
+   void OnTouchRelease(int32_t id, double x, double y);
+   void OnTouchCancel();
+   void OnKeyBack();
++  bool SendKeyEvent(int32_t keyCode, int32_t keyAction);
+ 
+  private:
+   CefRefPtr<CefBrowser> browser_ = nullptr;
++  NWebInputDelegate input_delegate_;
+ };
+ }  // namespace OHOS::NWeb
+ 
+diff --git a/ohos_nweb/src/cef_delegate/nweb_handler_delegate.cc b/ohos_nweb/src/cef_delegate/nweb_handler_delegate.cc
+index 826cc2a5d7638..04dc120990181 100755
+--- a/ohos_nweb/src/cef_delegate/nweb_handler_delegate.cc
++++ b/ohos_nweb/src/cef_delegate/nweb_handler_delegate.cc
+@@ -541,7 +541,8 @@ void NWebHandlerDelegate::OnBeforeDownload(
+         download_item->GetTotalBytes());
+   }
+ }
+-/* CefDownloadHandler methods end */
++
++/* CefKeyboardHandler methods end */
+ 
+ /* CefResourceRequestHandler method begin */
+ CefResourceRequestHandler::ReturnValue
+@@ -560,6 +561,7 @@ CefRefPtr<CefResourceHandler> NWebHandlerDelegate::GetResourceHandler(
+     CefRefPtr<CefBrowser> browser,
+     CefRefPtr<CefFrame> frame,
+     CefRefPtr<CefRequest> request) {
++  LOG(INFO) << "NWebHandlerDelegate::GetResourceHandler";
+   if (!request) {
+     LOG(ERROR) << "NWebHandlerDelegate::GetResourceHandler request is null";
+     return nullptr;
+diff --git a/ohos_nweb/src/cef_delegate/nweb_input_delegate.cc b/ohos_nweb/src/cef_delegate/nweb_input_delegate.cc
+new file mode 100644
+index 0000000000000..50b80661fd543
+--- /dev/null
++++ b/ohos_nweb/src/cef_delegate/nweb_input_delegate.cc
+@@ -0,0 +1,146 @@
++/*
++ * Copyright (c) 2022 Huawei Device Co., Ltd.
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#include "nweb_input_delegate.h"
++#include "cef/include/internal/cef_types_wrappers.h"
++
++using namespace OHOS::NWeb;
++const int32_t KEY_DOWN = 0;
++const int32_t KEY_UP = 1;
++
++const std::unordered_map<int, int>keycodeConverter = {
++  {OHOS::MMI::KeyEvent::KEYCODE_0, ui::VKEY_0},
++  {OHOS::MMI::KeyEvent::KEYCODE_1, ui::VKEY_1},
++  {OHOS::MMI::KeyEvent::KEYCODE_2, ui::VKEY_2},
++  {OHOS::MMI::KeyEvent::KEYCODE_3, ui::VKEY_3},
++  {OHOS::MMI::KeyEvent::KEYCODE_4, ui::VKEY_4},
++  {OHOS::MMI::KeyEvent::KEYCODE_5, ui::VKEY_5},
++  {OHOS::MMI::KeyEvent::KEYCODE_6, ui::VKEY_6},
++  {OHOS::MMI::KeyEvent::KEYCODE_7, ui::VKEY_7},
++  {OHOS::MMI::KeyEvent::KEYCODE_8, ui::VKEY_8},
++  {OHOS::MMI::KeyEvent::KEYCODE_9, ui::VKEY_9},
++  {OHOS::MMI::KeyEvent::KEYCODE_A, ui::VKEY_A},
++  {OHOS::MMI::KeyEvent::KEYCODE_B, ui::VKEY_B},
++  {OHOS::MMI::KeyEvent::KEYCODE_C, ui::VKEY_C},
++  {OHOS::MMI::KeyEvent::KEYCODE_D, ui::VKEY_D},
++  {OHOS::MMI::KeyEvent::KEYCODE_E, ui::VKEY_E},
++  {OHOS::MMI::KeyEvent::KEYCODE_F, ui::VKEY_F},
++  {OHOS::MMI::KeyEvent::KEYCODE_G, ui::VKEY_G},
++  {OHOS::MMI::KeyEvent::KEYCODE_H, ui::VKEY_H},
++  {OHOS::MMI::KeyEvent::KEYCODE_I, ui::VKEY_I},
++  {OHOS::MMI::KeyEvent::KEYCODE_J, ui::VKEY_J},
++  {OHOS::MMI::KeyEvent::KEYCODE_K, ui::VKEY_K},
++  {OHOS::MMI::KeyEvent::KEYCODE_L, ui::VKEY_L},
++  {OHOS::MMI::KeyEvent::KEYCODE_M, ui::VKEY_M},
++  {OHOS::MMI::KeyEvent::KEYCODE_N, ui::VKEY_N},
++  {OHOS::MMI::KeyEvent::KEYCODE_O, ui::VKEY_O},
++  {OHOS::MMI::KeyEvent::KEYCODE_P, ui::VKEY_P},
++  {OHOS::MMI::KeyEvent::KEYCODE_Q, ui::VKEY_Q},
++  {OHOS::MMI::KeyEvent::KEYCODE_R, ui::VKEY_R},
++  {OHOS::MMI::KeyEvent::KEYCODE_S, ui::VKEY_S},
++  {OHOS::MMI::KeyEvent::KEYCODE_T, ui::VKEY_T},
++  {OHOS::MMI::KeyEvent::KEYCODE_U, ui::VKEY_U},
++  {OHOS::MMI::KeyEvent::KEYCODE_V, ui::VKEY_V},
++  {OHOS::MMI::KeyEvent::KEYCODE_W, ui::VKEY_W},
++  {OHOS::MMI::KeyEvent::KEYCODE_X, ui::VKEY_X},
++  {OHOS::MMI::KeyEvent::KEYCODE_Y, ui::VKEY_Y},
++  {OHOS::MMI::KeyEvent::KEYCODE_Z, ui::VKEY_Z},
++  {OHOS::MMI::KeyEvent::KEYCODE_SHIFT_LEFT, ui::VKEY_SHIFT},
++  {OHOS::MMI::KeyEvent::KEYCODE_SHIFT_RIGHT, ui::VKEY_SHIFT},
++  {OHOS::MMI::KeyEvent::KEYCODE_TAB, ui::VKEY_TAB},
++  {OHOS::MMI::KeyEvent::KEYCODE_SPACE, ui::VKEY_SPACE},
++  {OHOS::MMI::KeyEvent::KEYCODE_ENTER, ui::VKEY_RETURN},
++  {OHOS::MMI::KeyEvent::KEYCODE_DEL, ui::VKEY_DELETE},
++  {OHOS::MMI::KeyEvent::KEYCODE_CTRL_LEFT, ui::VKEY_CONTROL},
++  {OHOS::MMI::KeyEvent::KEYCODE_CTRL_RIGHT, ui::VKEY_CONTROL},
++  {OHOS::MMI::KeyEvent::KEYCODE_F1, ui::VKEY_F1},
++  {OHOS::MMI::KeyEvent::KEYCODE_F2, ui::VKEY_F2},
++  {OHOS::MMI::KeyEvent::KEYCODE_F3, ui::VKEY_F3},
++  {OHOS::MMI::KeyEvent::KEYCODE_F4, ui::VKEY_F4},
++  {OHOS::MMI::KeyEvent::KEYCODE_F5, ui::VKEY_F5},
++  {OHOS::MMI::KeyEvent::KEYCODE_F6, ui::VKEY_F6},
++  {OHOS::MMI::KeyEvent::KEYCODE_F7, ui::VKEY_F7},
++  {OHOS::MMI::KeyEvent::KEYCODE_F8, ui::VKEY_F8},
++  {OHOS::MMI::KeyEvent::KEYCODE_F9, ui::VKEY_F9},
++  {OHOS::MMI::KeyEvent::KEYCODE_F10, ui::VKEY_F10},
++  {OHOS::MMI::KeyEvent::KEYCODE_F11, ui::VKEY_F11},
++  {OHOS::MMI::KeyEvent::KEYCODE_F12, ui::VKEY_F12},
++};
++
++const std::unordered_map<int, int> keyactionConverter = {
++  {KEY_UP, KEYEVENT_KEYUP},
++  {KEY_DOWN, KEYEVENT_KEYDOWN},
++};
++
++const std::unordered_map<std::string, std::unordered_map<int, int>> keyValueConverter = {
++  {"keycode", keycodeConverter},
++  {"keyaction", keyactionConverter},
++};
++
++bool NWebInputDelegate::KeyValueConvert(const std::string keyValue, std::unordered_map<int, int>& map) {
++  auto itKeyValue = keyValueConverter.find(keyValue);
++  if (itKeyValue == keyValueConverter.end()) {
++    return false;
++  }
++  map = itKeyValue->second;
++  return true;
++}
++
++int NWebInputDelegate::CefConverter(const std::string keyValue, int input) {
++  std::unordered_map<int, int> itConverter;
++  if (KeyValueConvert(keyValue, itConverter) == false) {
++    return -1;
++  }
++  auto item = itConverter.find(input);
++  if (item == itConverter.end()) {
++    return -1;
++  }
++  return item->second;
++}
++
++int NWebInputDelegate::OhosConverter(const std::string keyValue, int input) {
++  std::unordered_map<int, int> itConverter;
++  if (KeyValueConvert(keyValue, itConverter) == false) {
++    return -1;
++  }
++  auto item = itConverter.find(input);
++  if (item == itConverter.end()) {
++    return -1;
++  }
++  return item->first;
++}
++
++void NWebInputDelegate::SetModifiers(int keyCode, int keyAction)
++{
++  if ((keyCode == OHOS::MMI::KeyEvent::KEYCODE_CTRL_LEFT ||
++       keyCode == OHOS::MMI::KeyEvent::KEYCODE_CTRL_RIGHT) &&
++       keyCTL_ == true && keyAction == KEY_UP) {
++    keyCTL_ = false;
++  }
++
++  if ((keyCode == OHOS::MMI::KeyEvent::KEYCODE_CTRL_LEFT ||
++       keyCode == OHOS::MMI::KeyEvent::KEYCODE_CTRL_RIGHT) &&
++       keyCTL_ == false && keyAction == KEY_DOWN) {
++    keyCTL_ = true;
++  }
++}
++
++unsigned int NWebInputDelegate::GetModifiers()
++{
++  if (keyCTL_ == true) {
++    return (0 | EVENTFLAG_CONTROL_DOWN);
++  }
++  return 0;
++}
+\ No newline at end of file
+diff --git a/ohos_nweb/src/cef_delegate/nweb_input_delegate.h b/ohos_nweb/src/cef_delegate/nweb_input_delegate.h
+new file mode 100644
+index 0000000000000..da5b1e1c263a9
+--- /dev/null
++++ b/ohos_nweb/src/cef_delegate/nweb_input_delegate.h
+@@ -0,0 +1,38 @@
++/*
++ * Copyright (c) 2022 Huawei Device Co., Ltd.
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++#ifndef NWEB_KEYCODE_INTERFACE_H
++#define NWEB_KEYCODE_INTERFACE_H
++
++#include <unordered_map>
++#include "key_event.h"
++#include "ui/events/keycodes/keyboard_codes_posix.h"
++
++namespace OHOS::NWeb {
++class NWebInputDelegate {
++ public:
++  virtual ~NWebInputDelegate() = default;
++  static int CefConverter(const std::string keyValue, int input);
++  static int OhosConverter(const std::string keyValue, int input);
++  void SetModifiers(int keyCode, int keyAction);
++  unsigned int GetModifiers();
++
++ private:
++  static bool KeyValueConvert(const std::string keyValue, std::unordered_map<int, int>& map);
++  bool keyCTL_ = false;
++};
++}  // namespace OHOS::NWeb
++
++#endif
+\ No newline at end of file
+diff --git a/ohos_nweb/src/nweb_delegate_interface.h b/ohos_nweb/src/nweb_delegate_interface.h
+index 487de4702834c..f3f659e2a7641 100755
+--- a/ohos_nweb/src/nweb_delegate_interface.h
++++ b/ohos_nweb/src/nweb_delegate_interface.h
+@@ -43,6 +43,7 @@ class NWebDelegateInterface {
+   virtual void OnTouchRelease(int32_t id, double x, double y) = 0;
+   virtual void OnTouchMove(int32_t id, double x, double y) = 0;
+   virtual void OnTouchCancel() = 0;
++  virtual bool SendKeyEvent(int32_t keyCode, int32_t keyAction) = 0;
+ 
+   virtual void Load(const std::string& url) = 0;
+   virtual bool IsNavigatebackwardAllowed() const = 0;
+diff --git a/ohos_nweb/src/nweb_impl.cc b/ohos_nweb/src/nweb_impl.cc
+index e3310c89fb23b..60804d852317f 100755
+--- a/ohos_nweb/src/nweb_impl.cc
++++ b/ohos_nweb/src/nweb_impl.cc
+@@ -159,6 +159,9 @@ void NWebImpl::InitWebEngineArgs(const NWebInitArgs& init_args) {
+   web_engine_args_.emplace_back("/system/bin/web_render");
+   web_engine_args_.emplace_back("--in-process-gpu");
+   web_engine_args_.emplace_back("--disable-dev-shm-usage");
++#ifdef GPU_RK3568
++  web_engine_args_.emplace_back("--disable-gpu");
++#endif
+   web_engine_args_.emplace_back("--no-unsandboxed-zygote");
+   web_engine_args_.emplace_back("--no-zygote");
+   web_engine_args_.emplace_back("--off-screen-frame-rate=60");
+@@ -249,6 +252,13 @@ void NWebImpl::OnNavigateBack() {
+   input_handler_->OnNavigateBack();
+ }
+ 
++bool NWebImpl::SendKeyEvent(int32_t keyCode, int32_t keyAction) {
++  if (input_handler_ == nullptr) {
++    return false;
++  }
++  return input_handler_->SendKeyEvent(keyCode, keyAction);
++}
++
+ void NWebImpl::Load(const std::string& url) const {
+   if (nweb_delegate_ == nullptr || output_handler_ == nullptr) {
+     return;
+diff --git a/ohos_nweb/src/nweb_impl.h b/ohos_nweb/src/nweb_impl.h
+index d752003c9a37b..65daaffe87c02 100755
+--- a/ohos_nweb/src/nweb_impl.h
++++ b/ohos_nweb/src/nweb_impl.h
+@@ -43,6 +43,7 @@ class NWebImpl : public NWeb {
+   void OnTouchMove(int32_t id, double x, double y) override;
+   void OnTouchCancel() override;
+   void OnNavigateBack() override;
++  bool SendKeyEvent(int32_t keyCode, int32_t keyAction) override;
+ 
+   // public api
+   void Load(const std::string& url) const override;
+diff --git a/ohos_nweb/src/nweb_input_handler.cc b/ohos_nweb/src/nweb_input_handler.cc
+index 247d2fab7dfd6..0708fb360ea09 100644
+--- a/ohos_nweb/src/nweb_input_handler.cc
++++ b/ohos_nweb/src/nweb_input_handler.cc
+@@ -94,6 +94,13 @@ void NWebInputHandler::OnNavigateBack() {
+   }
+ }
+ 
++bool NWebInputHandler::SendKeyEvent(int32_t keyCode, int32_t keyAction) {
++  if (nweb_delegate_ == nullptr) {
++    return false;
++  }
++  return nweb_delegate_->SendKeyEvent(keyCode, keyAction);
++}
++
+ void NWebInputHandler::CheckSlideNavigation(int16_t start_x, int16_t end_x) {
+   if (nweb_delegate_ == nullptr) {
+     return;
+diff --git a/ohos_nweb/src/nweb_input_handler.h b/ohos_nweb/src/nweb_input_handler.h
+index 802229b4b02f9..3351edbf94683 100644
+--- a/ohos_nweb/src/nweb_input_handler.h
++++ b/ohos_nweb/src/nweb_input_handler.h
+@@ -39,6 +39,7 @@ class NWebInputHandler {
+   void OnTouchMove(int32_t id, double x, double y);
+   void OnTouchCancel();
+   void OnNavigateBack();
++  bool SendKeyEvent(int32_t keyCode, int32_t keyAction);
+ 
+  private:
+   void CheckSlideNavigation(int16_t start_x, int16_t end_x);
+diff --git a/third_party/blink/renderer/core/inspector/inspect_tools.cc b/third_party/blink/renderer/core/inspector/inspect_tools.cc
+index 474cd28fd6e6b..937955cb02f84 100644
+--- a/third_party/blink/renderer/core/inspector/inspect_tools.cc
++++ b/third_party/blink/renderer/core/inspector/inspect_tools.cc
+@@ -436,11 +436,16 @@ bool PersistentTool::IsEmpty() {
+   return !grid_node_highlights_.size() && !flex_container_configs_.size();
+ }
+ 
+-void PersistentTool::SetGridConfigs(GirdConfigs configs) {
++void PersistentTool::SetGridConfigs(
++    Vector<std::pair<Member<Node>,
++                     std::unique_ptr<InspectorGridHighlightConfig>>> configs) {
+   grid_node_highlights_ = std::move(configs);
+ }
+ 
+-void PersistentTool::SetFlexContainerConfigs(FlexContainerConfigs configs) {
++void PersistentTool::SetFlexContainerConfigs(
++    Vector<std::pair<Member<Node>,
++                     std::unique_ptr<InspectorFlexContainerHighlightConfig>>>
++        configs) {
+   flex_container_configs_ = std::move(configs);
+ }
+ 
+@@ -459,14 +464,14 @@ bool PersistentTool::HideOnMouseMove() {
+ void PersistentTool::Draw(float scale) {
+   for (auto& entry : grid_node_highlights_) {
+     std::unique_ptr<protocol::Value> highlight =
+-        InspectorGridHighlight(entry.key, *(entry.value));
++        InspectorGridHighlight(entry.first.Get(), *(entry.second));
+     if (!highlight)
+       continue;
+     overlay_->EvaluateInOverlay("drawGridHighlight", std::move(highlight));
+   }
+   for (auto& entry : flex_container_configs_) {
+     std::unique_ptr<protocol::Value> highlight =
+-        InspectorFlexContainerHighlight(entry.key, *(entry.value));
++        InspectorFlexContainerHighlight(entry.first.Get(), *(entry.second));
+     if (!highlight)
+       continue;
+     overlay_->EvaluateInOverlay("drawFlexContainerHighlight",
+@@ -480,7 +485,7 @@ PersistentTool::GetGridInspectorHighlightsAsJson() const {
+       protocol::ListValue::create();
+   for (auto& entry : grid_node_highlights_) {
+     std::unique_ptr<protocol::Value> highlight =
+-        InspectorGridHighlight(entry.key, *(entry.value));
++        InspectorGridHighlight(entry.first.Get(), *(entry.second));
+     if (!highlight)
+       continue;
+     highlights->pushValue(std::move(highlight));
+@@ -493,12 +498,6 @@ PersistentTool::GetGridInspectorHighlightsAsJson() const {
+   return result;
+ }
+ 
+-void PersistentTool::Trace(Visitor* visitor) const {
+-  InspectTool::Trace(visitor);
+-  visitor->Trace(grid_node_highlights_);
+-  visitor->Trace(flex_container_configs_);
+-}
+-
+ // SourceOrderTool -----------------------------------------------------------
+ 
+ SourceOrderTool::SourceOrderTool(
+diff --git a/third_party/blink/renderer/core/inspector/inspect_tools.h b/third_party/blink/renderer/core/inspector/inspect_tools.h
+index 095843a9d91fb..bd16149f25fbd 100644
+--- a/third_party/blink/renderer/core/inspector/inspect_tools.h
++++ b/third_party/blink/renderer/core/inspector/inspect_tools.h
+@@ -142,11 +142,11 @@ class SourceOrderTool : public InspectTool {
+ 
+ // -----------------------------------------------------------------------------
+ 
+-using GirdConfigs = HeapHashMap<WeakMember<Node>,
+-                                std::unique_ptr<InspectorGridHighlightConfig>>;
++using GirdConfigs = Vector<
++    std::pair<Member<Node>, std::unique_ptr<InspectorGridHighlightConfig>>>;
+ using FlexContainerConfigs =
+-    HeapHashMap<WeakMember<Node>,
+-                std::unique_ptr<InspectorFlexContainerHighlightConfig>>;
++    Vector<std::pair<Member<Node>,
++                     std::unique_ptr<InspectorFlexContainerHighlightConfig>>>;
+ class PersistentTool : public InspectTool {
+   using InspectTool::InspectTool;
+ 
+@@ -159,8 +159,6 @@ class PersistentTool : public InspectTool {
+   std::unique_ptr<protocol::DictionaryValue> GetGridInspectorHighlightsAsJson()
+       const;
+ 
+-  void Trace(Visitor* visitor) const override;
+-
+  private:
+   bool ForwardEventsToOverlay() override;
+   bool HideOnMouseMove() override;
+diff --git a/third_party/blink/renderer/core/inspector/inspector_overlay_agent.cc b/third_party/blink/renderer/core/inspector/inspector_overlay_agent.cc
+index d911642214dd3..a0ea77ccffc3f 100644
+--- a/third_party/blink/renderer/core/inspector/inspector_overlay_agent.cc
++++ b/third_party/blink/renderer/core/inspector/inspector_overlay_agent.cc
+@@ -700,7 +700,7 @@ Response InspectorOverlayAgent::setShowGridOverlays(
+         MakeGarbageCollected<PersistentTool>(this, GetFrontend());
+   }
+ 
+-  HeapHashMap<WeakMember<Node>, std::unique_ptr<InspectorGridHighlightConfig>>
++  Vector<std::pair<Member<Node>, std::unique_ptr<InspectorGridHighlightConfig>>>
+       configs;
+   for (std::unique_ptr<protocol::Overlay::GridNodeHighlightConfig>& config :
+        *grid_node_highlight_configs) {
+@@ -708,8 +708,9 @@ Response InspectorOverlayAgent::setShowGridOverlays(
+     Response response = dom_agent_->AssertNode(config->getNodeId(), node);
+     if (!response.IsSuccess())
+       return response;
+-    configs.insert(node, InspectorOverlayAgent::ToGridHighlightConfig(
+-                             config->getGridHighlightConfig()));
++    configs.push_back(
++        std::make_pair(node, InspectorOverlayAgent::ToGridHighlightConfig(
++                                 config->getGridHighlightConfig())));
+   }
+ 
+   persistent_tool_->SetGridConfigs(std::move(configs));
+@@ -727,8 +728,8 @@ Response InspectorOverlayAgent::setShowFlexOverlays(
+         MakeGarbageCollected<PersistentTool>(this, GetFrontend());
+   }
+ 
+-  HeapHashMap<WeakMember<Node>,
+-              std::unique_ptr<InspectorFlexContainerHighlightConfig>>
++  Vector<std::pair<Member<Node>,
++                   std::unique_ptr<InspectorFlexContainerHighlightConfig>>>
+       configs;
+ 
+   for (std::unique_ptr<protocol::Overlay::FlexNodeHighlightConfig>& config :
+@@ -737,8 +738,9 @@ Response InspectorOverlayAgent::setShowFlexOverlays(
+     Response response = dom_agent_->AssertNode(config->getNodeId(), node);
+     if (!response.IsSuccess())
+       return response;
+-    configs.insert(node, InspectorOverlayAgent::ToFlexContainerHighlightConfig(
+-                             config->getFlexContainerHighlightConfig()));
++    configs.push_back(std::make_pair(
++        node, InspectorOverlayAgent::ToFlexContainerHighlightConfig(
++                  config->getFlexContainerHighlightConfig())));
+   }
+ 
+   persistent_tool_->SetFlexContainerConfigs(std::move(configs));
+@@ -842,16 +844,16 @@ Response InspectorOverlayAgent::getGridHighlightObjectsForTest(
+     std::unique_ptr<protocol::Array<int>> node_ids,
+     std::unique_ptr<protocol::DictionaryValue>* highlights) {
+   PersistentTool persistent_tool(this, GetFrontend());
+-
+-  HeapHashMap<WeakMember<Node>, std::unique_ptr<InspectorGridHighlightConfig>>
++  Vector<std::pair<Member<Node>, std::unique_ptr<InspectorGridHighlightConfig>>>
+       configs;
+   for (const int node_id : *node_ids) {
+     Node* node = nullptr;
+     Response response = dom_agent_->AssertNode(node_id, node);
+     if (!response.IsSuccess())
+       return response;
+-    configs.insert(node, std::make_unique<InspectorGridHighlightConfig>(
+-                             InspectorHighlight::DefaultGridConfig()));
++    configs.push_back(
++        std::make_pair(node, std::make_unique<InspectorGridHighlightConfig>(
++                                 InspectorHighlight::DefaultGridConfig())));
+   }
+   persistent_tool.SetGridConfigs(std::move(configs));
+   *highlights = persistent_tool.GetGridInspectorHighlightsAsJson();
+diff --git a/tools/metrics/histograms/enums.xml b/tools/metrics/histograms/enums.xml
+index 4af899b058a6a..808a241114bbf 100644
+--- a/tools/metrics/histograms/enums.xml
++++ b/tools/metrics/histograms/enums.xml
+@@ -68571,7 +68571,6 @@ https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_2.7.1.pdf
+   <int value="394" label="FILELOC"/>
+   <int value="395" label="WEBLOC"/>
+   <int value="396" label="XSD"/>
+-  <int value="397" label="INETLOC"/>
+ </enum>
+ 
+ <enum name="SBClientDownloadIsSignedBinary">
+diff --git a/ui/aura/gestures/gesture_recognizer_unittest.cc b/ui/aura/gestures/gesture_recognizer_unittest.cc
+index fafd5cb6096de..40ad046607507 100644
+--- a/ui/aura/gestures/gesture_recognizer_unittest.cc
++++ b/ui/aura/gestures/gesture_recognizer_unittest.cc
+@@ -29,7 +29,6 @@
+ #include "ui/events/event_utils.h"
+ #include "ui/events/gesture_detection/gesture_configuration.h"
+ #include "ui/events/gesture_detection/gesture_provider.h"
+-#include "ui/events/gestures/gesture_recognizer_impl.h"
+ #include "ui/events/gestures/gesture_types.h"
+ #include "ui/events/test/event_generator.h"
+ #include "ui/events/test/events_test_utils.h"
+@@ -1738,75 +1737,6 @@ TEST_F(GestureRecognizerTest, GestureTapFollowedByScroll) {
+   EXPECT_TRUE(delegate->fling());
+ }
+ 
+-// Verifies that destroying a gesture provider aura instance before a touch
+-// event is ACKed works as expected (see https://crbug.com/1292264).
+-TEST_F(GestureRecognizerTest, DestroyGestureProviderAuraBeforeAck) {
+-  TimedEvents tes;
+-  const int kTouchId = 4;
+-  std::unique_ptr<GestureEventConsumeDelegate> delegate(
+-      new GestureEventConsumeDelegate());
+-  std::unique_ptr<aura::Window> window1(CreateTestWindowWithDelegate(
+-      delegate.get(), /*id=*/-2345, /*bounds=*/gfx::Rect(0, 0, 50, 50),
+-      /*parent=*/root_window()));
+-
+-  // Touch press then release on `window1`.
+-  constexpr gfx::Point touch_location(/*x=*/10, /*y=*/20);
+-  ui::TouchEvent press(
+-      ui::ET_TOUCH_PRESSED, touch_location, /*time_stamp=*/tes.Now(),
+-      ui::PointerDetails(ui::EventPointerType::kTouch, kTouchId));
+-  delegate->Reset();
+-  DispatchEventUsingWindowDispatcher(&press);
+-  EXPECT_TRUE(delegate->tap_down());
+-  delegate->Reset();
+-  ui::TouchEvent release(
+-      ui::ET_TOUCH_RELEASED, touch_location,
+-      /*time_stamp=*/press.time_stamp() + base::Milliseconds(50),
+-      ui::PointerDetails(ui::EventPointerType::kTouch, kTouchId));
+-  DispatchEventUsingWindowDispatcher(&release);
+-  EXPECT_FALSE(delegate->tap_down());
+-
+-  // Verify that the gesture provider for `window1` is created.
+-  auto* gesture_recognizer = static_cast<ui::GestureRecognizerImpl*>(
+-      aura::Env::GetInstance()->gesture_recognizer());
+-  const auto& consumer_provider_mappings =
+-      gesture_recognizer->consumer_gesture_provider_;
+-  EXPECT_NE(consumer_provider_mappings.cend(),
+-            consumer_provider_mappings.find(window1.get()));
+-
+-  // Create a second window for handling touch events.
+-  std::unique_ptr<QueueTouchEventDelegate> delegate2(
+-      new QueueTouchEventDelegate(host()->dispatcher()));
+-  const int kTouchId2 = 4;
+-  std::unique_ptr<aura::Window> window2(CreateTestWindowWithDelegate(
+-      delegate2.get(), /*id=*/-1234, /*bounds=*/gfx::Rect(100, 100, 500, 500),
+-      root_window()));
+-  delegate2->set_window(window2.get());
+-
+-  // Send a press event on `window2`. Verify that the gesture provider for
+-  // `window2` is created.
+-  ui::TouchEvent press2(
+-      ui::ET_TOUCH_PRESSED, /*location=*/gfx::Point(200, 200),
+-      /*time_stamp=*/tes.Now(),
+-      ui::PointerDetails(ui::EventPointerType::kTouch, kTouchId2));
+-  DispatchEventUsingWindowDispatcher(&press2);
+-  EXPECT_NE(consumer_provider_mappings.cend(),
+-            consumer_provider_mappings.find(window2.get()));
+-
+-  // Verify that `press2` is associated with a gesture provider raw pointer.
+-  const auto& event_provider_mappings =
+-      gesture_recognizer->event_to_gesture_provider_;
+-  EXPECT_NE(event_provider_mappings.cend(),
+-            event_provider_mappings.find(press2.unique_event_id()));
+-
+-  // Before ACKing `press2`, replacing the gesture provider of `window2` with a
+-  // new value through event transferal.
+-  aura::Env::GetInstance()->gesture_recognizer()->TransferEventsTo(
+-      window1.get(), window2.get(), ui::TransferTouchesBehavior::kCancel);
+-
+-  // ACK the press event.
+-  delegate2->ReceivedAck();
+-}
+-
+ TEST_F(GestureRecognizerTest, AsynchronousGestureRecognition) {
+   std::unique_ptr<QueueTouchEventDelegate> queued_delegate(
+       new QueueTouchEventDelegate(host()->dispatcher()));
+diff --git a/ui/events/gestures/gesture_provider_aura.cc b/ui/events/gestures/gesture_provider_aura.cc
+index 3d100093bb466..eb43a56ceda5c 100644
+--- a/ui/events/gestures/gesture_provider_aura.cc
++++ b/ui/events/gestures/gesture_provider_aura.cc
+@@ -39,9 +39,7 @@ GestureProviderAura::GestureProviderAura(GestureConsumer* consumer,
+       kDoubleTapPlatformSupport);
+ }
+ 
+-GestureProviderAura::~GestureProviderAura() {
+-  client_->OnGestureProviderAuraWillBeDestroyed(this);
+-}
++GestureProviderAura::~GestureProviderAura() {}
+ 
+ bool GestureProviderAura::OnTouchEvent(TouchEvent* event) {
+   if (!pointer_state_.OnTouch(*event))
+@@ -112,4 +110,4 @@ void GestureProviderAura::OnTouchEnter(int pointer_id, float x, float y) {
+                   false /* is_source_touch_event_set_blocking */);
+ }
+ 
+-}  // namespace ui
++}  // namespace content
+diff --git a/ui/events/gestures/gesture_provider_aura.h b/ui/events/gestures/gesture_provider_aura.h
+index 1a7ff93aa0a33..1cf2b3a47dc30 100644
+--- a/ui/events/gestures/gesture_provider_aura.h
++++ b/ui/events/gestures/gesture_provider_aura.h
+@@ -27,10 +27,6 @@ class EVENTS_EXPORT GestureProviderAuraClient {
+   virtual ~GestureProviderAuraClient() {}
+   virtual void OnGestureEvent(GestureConsumer* consumer,
+                               GestureEvent* event) = 0;
+-
+-  // Called when `gesture_provider` will be destroyed.
+-  virtual void OnGestureProviderAuraWillBeDestroyed(
+-      GestureProviderAura* gesture_provider) {}
+ };
+ 
+ // Provides gesture detection and dispatch given a sequence of touch events
+diff --git a/ui/events/gestures/gesture_recognizer_impl.cc b/ui/events/gestures/gesture_recognizer_impl.cc
+index 344412f1c2993..85912f5ad4eb5 100644
+--- a/ui/events/gestures/gesture_recognizer_impl.cc
++++ b/ui/events/gestures/gesture_recognizer_impl.cc
+@@ -393,18 +393,6 @@ void GestureRecognizerImpl::OnGestureEvent(GestureConsumer* raw_input_consumer,
+   DispatchGestureEvent(raw_input_consumer, event);
+ }
+ 
+-void GestureRecognizerImpl::OnGestureProviderAuraWillBeDestroyed(
+-    GestureProviderAura* gesture_provider) {
+-  // Clean `event_to_gesture_provider_` by removing invalid raw pointers.
+-  for (auto iter = event_to_gesture_provider_.begin();
+-       iter != event_to_gesture_provider_.end();) {
+-    if (iter->second == gesture_provider)
+-      iter = event_to_gesture_provider_.erase(iter);
+-    else
+-      ++iter;
+-  }
+-}
+-
+ GestureEventHelper* GestureRecognizerImpl::FindDispatchHelperForConsumer(
+     GestureConsumer* consumer) {
+   std::vector<GestureEventHelper*>::iterator it;
+diff --git a/ui/events/gestures/gesture_recognizer_impl.h b/ui/events/gestures/gesture_recognizer_impl.h
+index b2a24c0fbdfba..54d9c1079a30a 100644
+--- a/ui/events/gestures/gesture_recognizer_impl.h
++++ b/ui/events/gestures/gesture_recognizer_impl.h
+@@ -19,11 +19,6 @@
+ #include "ui/events/types/event_type.h"
+ #include "ui/gfx/geometry/point.h"
+ 
+-namespace aura::test {
+-FORWARD_DECLARE_TEST(GestureRecognizerTest,
+-                     DestroyGestureProviderAuraBeforeAck);
+-}  // namespace aura::test
+-
+ namespace ui {
+ class GestureConsumer;
+ class GestureEvent;
+@@ -78,9 +73,6 @@ class EVENTS_EXPORT GestureRecognizerImpl : public GestureRecognizer,
+                                     GestureConsumer* consumer) override;
+ 
+  private:
+-  FRIEND_TEST_ALL_PREFIXES(aura::test::GestureRecognizerTest,
+-                           DestroyGestureProviderAuraBeforeAck);
+-
+   // Sets up the target consumer for gestures based on the touch-event.
+   void SetupTargets(const TouchEvent& event, GestureConsumer* consumer);
+ 
+@@ -102,8 +94,6 @@ class EVENTS_EXPORT GestureRecognizerImpl : public GestureRecognizer,
+   // Overridden from GestureProviderAuraClient
+   void OnGestureEvent(GestureConsumer* raw_input_consumer,
+                       GestureEvent* event) override;
+-  void OnGestureProviderAuraWillBeDestroyed(
+-      GestureProviderAura* gesture_provider) override;
+ 
+   // Convenience method to find the GestureEventHelper that can dispatch events
+   // to a specific |consumer|.
+diff --git a/ui/ozone/common/egl_util.cc b/ui/ozone/common/egl_util.cc
+index 0f48712ece7d5..5c5a416cfcc6f 100644
+--- a/ui/ozone/common/egl_util.cc
++++ b/ui/ozone/common/egl_util.cc
+@@ -42,7 +42,7 @@ const base::FilePath::CharType kDefaultGlesSoname[] =
+     FILE_PATH_LITERAL("libGLESv2.so");
+ #else
+ const base::FilePath::CharType kDefaultGlesSoname[] =
+-    FILE_PATH_LITERAL("libGLESv2.so");
++    FILE_PATH_LITERAL("libGLES_mali.so");
+ #endif
+ #else
+ const base::FilePath::CharType kDefaultEglSoname[] =
