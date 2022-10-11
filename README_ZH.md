@@ -38,7 +38,7 @@
 * 在源代码基础上增加针对nweb的构建修改，主要包括：增加cef代码，openharmony编译构建适配，nweb构建源码，chromium漏洞补丁以及nweb的bugfix修改。
 *注1：关于cef的介绍，可以访问cef仓：[third_party_cef](https://gitee.com/openharmony/third_party_cef)*
 2. 全量编译RK3568平台openharmony镜像，成功后，再执行第三步编译基于openharmony平台的nweb组件。
-*注2：关于如何构建RK3568平台openharmony镜像，可以访问：[RK3568编译指导](https://gitee.com/openharmony/docs/blob/master/zh-cn/device-dev/quick-start/quickstart-standard-running-rk3568-build.md)*
+*注2：关于如何构建RK3568平台openharmony镜像，可以访问：[RK3568编译指导](https://gitee.com/openharmony/docs/blob/master/zh-cn/device-dev/quick-start/quickstart-ide-3568-build.md)*
 3. 执行./build.sh -gn，编译源码。
 4. 通过DevEco studio将编译目标打包成NWeb.hap，使用hdc_std install NWeb.hap安装至RK3568，IDE下载可访问：[下载官网](https://hmxt.org/deveco-studio)
 ## 相关仓
