@@ -20,7 +20,7 @@ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
 # 配置环境变量
 
-export PATH="$PATH:${HOME}/depot_tools"
+export PATH="$PATH:${PWD}/depot_tools"
 
 # 下载代码
 
@@ -72,12 +72,5 @@ git apply ../patch/3.2_Beta2.patch
 # 10.730版本cve安全漏洞补丁
 git apply ../patch/3.2_Beta2_cve_v8.patch
 
-
-# cve漏洞patch
-cd ..
-
-# 1. CVE-2022-2295、CVE-2022-2294安全漏洞补丁
-git apply ./patch/Release-816.patch
-
-# 2. CVE-2022-2415安全漏洞补丁
-git apply ./patch/Release-823.patch
+## 11.930版本chromium代码新增与修改
+git apply --whitespace=nowarn --ignore-whitespace -p1 ../patch/3.2_Beta3.patch
