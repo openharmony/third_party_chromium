@@ -17,6 +17,7 @@
 | 3.2_Beta2_cve_v8.patch | 3.2-Beta2版本 v8 engine cve安全漏洞补丁 |
 | Release-816.patch | CVE-2022-2295、CVE-2022-2294安全漏洞补丁 |
 | Release-823.patch | CVE-2022-2415安全漏洞补丁 |
+| 3.2_Beta3.patch | 3.2-Beta3版本新增代码 |
 
 
 ## 前提
@@ -43,6 +44,7 @@ chromium版本与openharmony版本对应的关系
 | 3.1-Release | OpenHarmony-3.1-Release |
 | 3.2-Beta1 | OpenHarmony-3.2-Beta1 |
 | 3.2-Beta2 | OpenHarmony-3.2-Beta2 |
+| 3.2-Beta3 | OpenHarmony-3.2-Beta3 |
 
 介绍不同版本打补丁的顺序
 
@@ -82,3 +84,14 @@ git apply ./patch/Release-823.patch
  ```
 [3.2-Beta2](https://gitee.com/openharmony/third_party_chromium/tree/OpenHarmony-3.2-Beta2/patch)
 
+**4、3.2-Beta3**
+```
+git apply ../patch/3.1_Release.patch
+git apply ../patch/3.1_Release_cve_v8.patch
+git apply ../patch/3.2_Beta1.patch
+git apply ../patch/3.2_Beta1_cve_v8.patch
+git apply ../patch/3.2_Beta2.patch
+git apply ../patch/3.2_Beta2_cve_v8.patch
+git apply --whitespace=nowarn --ignore-whitespace -p1 ../patch/3.2_Beta3.patch
+ ```
+[3.2-Beta3](https://gitee.com/openharmony/third_party_chromium/tree/OpenHarmony-3.2-Beta3/patch)
