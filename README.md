@@ -1,24 +1,12 @@
 # Chromium
 ## Introduction
 1. Chromium is an open-source web browser principally developed by Google and from which Google Chrome draws its source code. It is released under the BSD license and other permissive open-source licenses, aiming to build a safer, faster and more stable way to experience the Internet.
-2. OpenHarmony nwebview is built on Chromium.
+2. OpenHarmony nweb is built on Chromium.
 ## Software Architecture
 Below is the software architecture.
-```
-    -----------------------
-    |      Web component         |
-    -----------------------
-    |      nwebview        |
-    -----------------------
-    |       CEF            |
-    -----------------------
-    |      Chromium        |
-    -----------------------
-    |  OpenHarmony base library   |
-    -----------------------
-```
-* Web component: UI component in OpenHarmony.
-* nwebview: native engine of the OpenHarmony web component, which is built based on the Chromium Embedded Framework (CEF).
+![](figures/Web-architecture.png "web-architecture")
+* Webview component: UI component in OpenHarmony.
+* nweb: native engine of the OpenHarmony web component, which is built based on the Chromium Embedded Framework (CEF).
 * CEF: stands for Chromium Embedded Framework. It is an open-source project based on Google Chromium.
 * Chromium: an open-source web browser principally developed by Google and released under the BSD license and other permissive open-source licenses.
 ## Directory Structure
