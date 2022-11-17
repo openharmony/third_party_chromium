@@ -39,8 +39,35 @@
 *注1：关于cef的介绍，可以访问cef仓：[third_party_cef](https://gitee.com/openharmony/third_party_cef)*
 2. 全量编译RK3568平台openharmony镜像，成功后，再执行第三步编译基于openharmony平台的nweb组件。
 *注2：关于如何构建RK3568平台openharmony镜像，可以访问：[RK3568编译指导](https://gitee.com/openharmony/docs/blob/master/zh-cn/device-dev/quick-start/quickstart-ide-3568-build.md)*
-3. 执行./build.sh -gn，编译源码。
-4. 通过DevEco studio将编译目标打包成NWeb.hap，使用hdc_std install NWeb.hap安装至RK3568，IDE下载可访问：[下载官网](https://hmxt.org/deveco-studio)
+3. 执行./build.sh rk3568，编译源码。
+4. 通过DevEco studio将编译目标打包成NWeb.hap，使用hdc_std install NWeb.hap安装至RK3568，
+* 1.IDE下载可访问：[下载官网](https://developer.harmonyos.com/cn/develop/deveco-studio#download)
+   ![](figures/下载版本.png "下载版本")
+
+* 2.新建OpenHarmony空白工程
+   ![](figures/新建工程.png "新建工程")
+* 3.复制编译生成的文件（src/out/rk3568或src/out/rk3568_64目录下）至工程对应位置
+   ![](figures/存放路径.png "存放路径") 
+
+* 4.删除entry/src/main/ets/pages/Index.ets文件
+
+* 5.修改src/main/ets/entryability/EntryAbility.ts文件为以下内容：
+   ![](figures/EntryAbility_ts.png "EntryAbility.ts") 
+
+* 6.修改src/main/module.json5文件，删除"abilities"字段
+
+* 7.删除src/main/resources/base/media/icon.png
+
+* 8.修改AppScope/app.json5中"vendor"的值为"nweb",
+
+* 9.删除src/main/resources/base/profile/main_pages.json中”src”中的内容
+
+* 10.配置自动签名之后，通过IDE打包hap
+
+* 11.由于签名不同，无法直接安装，通过
+  hdc file send 本地hap包 /system/app/com.ohos.nweb/NWeb.hap
+进行安装
+
 ## 相关仓
 [ace_ace_engine](https://gitee.com/openharmony/ace_ace_engine)
 

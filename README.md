@@ -34,7 +34,7 @@ Below is the software architecture.
 * *Note 1: For details about the CEF, visit [third_party_cef](https://gitee.com/openharmony/third_party_cef)*.
 2. Compile the OpenHarmony image of the RK3568 platform in full mode. When the compilation is successful, perform step 3 to compile the nweb component in OpenHarmony.
 * *Note 2: For details about how to build the OpenHarmony image of the RK3568 platform, see [RK3568 Build Guidelines](https://gitee.com/openharmony/docs/blob/master/zh-cn/device-dev/quick-start/quickstart-standard-running-rk3568-build.md).*
-3. Run **./build.sh -gn** to build the source code.
+3. Run **./build.sh rk3568** to build the source code.
 4. Use DevEco Studio to package the build target into **NWeb.hap**, and run **hdc_std install NWeb.hap** to install **NWeb.hap** on RK3568. To download DevEco Studio, visit https://hmxt.org/deveco-studio.
 ## Repositories Involved
 [ace_ace_engine](https://gitee.com/openharmony/ace_ace_engine)
