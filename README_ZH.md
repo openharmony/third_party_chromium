@@ -6,24 +6,12 @@
 ## 简介
 ### 内容介绍
 1. Chromium是由Google主导开发的网页浏览器，以BSD许可证等多重自由版权发行并开放源代码，是Google的Chrome浏览器背后的引擎，其目的是为了创建一个安全、稳定和快速的通用浏览器。
-2. OpenHarmony nwebview基于Chromium构建。
+2. OpenHarmony nweb基于Chromium构建。
 ### 软件架构
 软件架构说明
-```
-    -----------------------
-    |      web组件          |
-    -----------------------
-    |      nwebview        |
-    -----------------------
-    |       CEF            |
-    -----------------------
-    |      Chromium        |
-    -----------------------
-    |  OpenHarmony基础库    |
-    -----------------------
-```
-* web组件：OpenHarmony的UI组件。
-* nwebview：基于CEF构建的OpenHarmony web组件的Native引擎。
+![](figures/Web-architecture_ZH.png "web软件架构图")
+* webview组件：OpenHarmony的UI组件。
+* nweb：基于CEF构建的OpenHarmony web组件的Native引擎。
 * CEF：CEF全称Chromium Embedded Framework，是一个基于Google Chromium 的开源项目。
 * Chromium： Chromium是一个由Google主导开发的网页浏览器，以BSD许可证等多重自由版权发行并开放源代码。
 ## 目录
