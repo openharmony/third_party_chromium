@@ -15,62 +15,23 @@
 set -e
 
 # 下载google工具集depot_tools
-
 git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
 
 # 配置环境变量
-
+export CR_BRANCH="99.0.4844.88"
 export PATH="$PATH:${PWD}/depot_tools"
 
 # 下载代码
-
-fetch --nohooks chromium
-
+fetch --nohooks android
 cd src
-
-git fetch origin 91.0.4455.0
-
-git checkout -b 91.0.4455.0 FETCH_HEAD
-
-gclient sync --with_branch_heads -D
+git fetch origin $CR_BRANCH
+git checkout -b $CR_BRANCH FETCH_HEAD
+gclient sync --force --nohooks --with_branch_heads -D -v
 
 # 下载依赖
-./build/install-build-deps.sh --no-chromeos-fonts
 ./build/install-build-deps-android.sh
-
-gclient runhooks
+gclient runhooks -v
 
 # 使用Openharmony nweb的patch
+git apply --whitespace=nowarn --ignore-whitespace -p2 ../patch/*.patch
 
-# 1.使用针对cef的修改
-git apply ../patch/0001_cef_V4455.patch
-
-# 2.使用针对openharmony编译的修改
-git apply ../patch/0002_build_for_ohos.patch
-
-# 3.使用nweb引擎的修改
-git apply ../patch/0003_ohos_nweb.patch
-
-# 4.chromium cve安全漏洞补丁及nweb bug修复
-git apply ../patch/0004_nweb_cve_bugfix.patch
-
-# 5.2022-3-24-cve安全漏洞补丁
-git apply ../patch/3.1_Release_cve_v8.patch
-
-# 6.330版本chromium代码新增与修改
-git apply ../patch/3.1_Release.patch
-
-# 7.530版本chromium代码新增与修改
-git apply ../patch/3.2_Beta1.patch
-
-# 8.530版本cve安全漏洞补丁
-git apply ../patch/3.2_Beta1_cve_v8.patch
-
-# 9.730版本chromium代码新增与修改
-git apply ../patch/3.2_Beta2.patch
-
-# 10.730版本cve安全漏洞补丁
-git apply ../patch/3.2_Beta2_cve_v8.patch
-
-## 11.930版本chromium代码新增与修改
-git apply --whitespace=nowarn --ignore-whitespace -p1 ../patch/3.2_Beta3.patch
