@@ -1,0 +1,29 @@
+diff --git a/src/build/config/ohos/config.gni b/src/build/config/ohos/config.gni
+index 882ca78b35..62d7bfcb57
+--- a/src/build/config/ohos/config.gni
++++ b/src/build/config/ohos/config.gni
+@@ -85,9 +85,10 @@ if (is_ohos) {
+       "$ohos_build_root/foundation/graphic/graphic_2d/interfaces/inner_api/surface",
+       "$ohos_build_root/foundation/graphic/surface/interfaces/kits",
+       "$ohos_build_root/foundation/communication/ipc/interfaces/innerkits/ipc_core/include",
+-      "$ohos_build_root/base/inputmethod/imf/frameworks/inputmethod_controller/include",
++      "$ohos_build_root/base/inputmethod/imf/frameworks/native/inputmethod_ability/include",
++      "$ohos_build_root/base/inputmethod/imf/frameworks/native/inputmethod_controller/include",
++      "$ohos_build_root/base/inputmethod/imf/interfaces/inner_api/inputmethod_controller/include",
+       "$ohos_build_root/base/inputmethod/imf/services/include",
+-      "$ohos_build_root/base/inputmethod/imf/frameworks/inputmethod_ability/include",
+       "$ohos_build_root/commonlibrary/c_utils/base/include",
+       "$ohos_build_root/third_party/bounds_checking_function/include",
+       "$ohos_build_root/foundation/multimodalinput/input/interfaces/native/innerkits/event/include",
+diff --git a/src/ohos_nweb/BUILD.gn b/src/ohos_nweb/BUILD.gn
+index 74afb6ce40..e35a2f166f
+--- a/src/ohos_nweb/BUILD.gn
++++ b/src/ohos_nweb/BUILD.gn
+@@ -44,6 +44,7 @@ config("cef_nweb_config") {
+ 
+   lib_dirs = ohos_libs_dir
+   libs = [
++    "mmi-client.z",
+     "inputmethod_client.z",
+     "ipc_core.z",
+     "inputmethod_ability.z",
