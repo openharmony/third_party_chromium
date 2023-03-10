@@ -20,7 +20,7 @@ ROOT_DIR="${CUR_DIR%/src*}""/src"
 # Global variables.
 BUILD_TARGET_WEBVIEW="ohos_nweb_hap"
 BUILD_TARGET_BROWSERSHELL="ohos_browser_shell"
-BUILD_TARGET_NATIVE="libnweb_adapter libweb_engine web_render libnweb_render"
+BUILD_TARGET_NATIVE="libweb_engine web_render libnweb_render"
 BUILD_TARGET_BROWSER_SERVICE="ohos_nweb_ex/browser_service"
 BUILD_TARGET_BROWSER_SERVICE_HAR="browser_service_har"
 TEXT_BOLD="\033[1m"
@@ -30,11 +30,9 @@ TEXT_NORMAL="\033[0m"
 buildargs="
   target_os=\"ohos\"
   is_debug=false
-  enable_remoting=true
   use_allocator=\"none\"
   is_official_build=true
   is_component_build=false
-  enable_nacl=false
   is_chrome_branded=false
   use_official_google_api_keys=false
   use_ozone=true
@@ -47,12 +45,8 @@ buildargs="
   use_kerberos=false
   use_bundled_fontconfig=true
   enable_resource_allowlist_generation=false
-  enable_plugins=true
   clang_use_chrome_plugins=false
-  toolkit_views=false
-  enable_one_click_signin=true
   enable_message_center=true
-  enable_offline_pages=false
   safe_browsing_mode=0
   use_custom_libcxx=false
   use_sysroot=false
@@ -67,8 +61,9 @@ buildccache=0
 buildsymbol=0
 buildproduct=""
 buildarg_cpu="target_cpu=\"arm\""
-buildarg_musl="use_musl=false"
+buildarg_musl="use_musl=true"
 build_dir="out/rk3568/"
+build_product_name="product_name=\"rk3568\""
 build_target="${BUILD_TARGET_NATIVE}"
 build_output=""
 artifact_mode=0
