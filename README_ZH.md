@@ -34,7 +34,11 @@
 
 * 2.新建OpenHarmony空白工程
    ![](figures/新建工程.png "新建工程")
-* 3.复制编译生成的文件（src/out/rk3568或src/out/rk3568_64目录下）至工程对应位置
+* 3.复制编译生成的文件（src/out/rk3568或src/out/rk3568_64目录下）至工程对应位置  
+    32位镜像，so放置于/entry/libs/armeabi-v7a/  
+    64位镜像，so放置于/entry/libs/arm64-v8a/  
+    其他资源文件放置于/entry/src/main/resources/rawfile/  
+    如图所示为32位镜像对应放置位置：  
    ![](figures/存放路径.png "存放路径") 
 
 * 4.删除entry/src/main/ets/pages/Index.ets文件
