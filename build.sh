@@ -14,7 +14,7 @@
 
 # use ./build.sh -nosym to build content_shell without symbol.
 set -e
-basedir=`dirname "$0"`
+basedir=$(dirname "$0")
 CUR_DIR=$PWD
 ROOT_DIR="${CUR_DIR%/src*}""/src"
 # Global variables.
@@ -181,7 +181,7 @@ if [ $buildsymbol = 1 ]; then
 fi
 
 if [ $buildcount = 0 ]; then
-  #buildcount=`grep processor /proc/cpuinfo | wc -l`
+  #buildcount=$(grep processor /proc/cpuinfo | wc -l)
   buildcount=40
 fi
 
@@ -246,17 +246,17 @@ fi
 
 cd src
 
-time_start_for_build=`date +%s`
+time_start_for_build=$(date +%s)
 time_start_for_gn=$time_start_for_build
 
 if [ $buildgn = 1 ]; then
   echo "generating args list: $buildargs $GN_ARGS"
   third_party/depot_tools/gn gen $build_dir --args="$buildargs $buildarg_cpu $buildarg_musl $build_sysroot $build_product_name $GN_ARGS symbol_level=$SYMBOL_LEVEL"
 fi
-time_end_for_gn=`date +%s`
+time_end_for_gn=$(date +%s)
 
 third_party/depot_tools/ninja -C $build_dir -j$buildcount ${build_target}
-time_end_for_build=`date +%s`
+time_end_for_build=$(date +%s)
 
 time_format() {
   hours=$((($1 - $2) / 3600))
