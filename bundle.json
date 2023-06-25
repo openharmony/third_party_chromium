@@ -1,0 +1,30 @@
+{
+    "name": "@ohos/chromium",
+    "description": "chromium.",
+    "version": "3.1",
+    "license": "Apache V2",
+    "publishAs": "code-segment",
+    "segment": {
+        "destPath": "third_party/chromium"
+    },
+    "dirs": {},
+    "scripts": {},
+    "component": {
+        "name": "chromium",
+        "subsystem": "thirdparty",
+        "syscap": [],
+        "features": [],
+        "adapted_system_type": [
+            "standard"
+        ],
+        "deps": {
+            "components": [],
+            "third_party": []
+        },
+        "build": {
+            "sub_component": [],
+            "inner_kits": [],
+            "test": []
+        }
+    }
+}
